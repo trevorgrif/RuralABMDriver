@@ -1,0 +1,3 @@
+[submodule "lib/RuralABM"]
+	path = lib/RuralABM
+	url = https://github.com/trevorgrif/RuralABM.git
