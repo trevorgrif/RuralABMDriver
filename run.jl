@@ -1,7 +1,7 @@
 using Distributed
 @everywhere using Pkg
 @everywhere Pkg.activate(".")
-@everywhere using RuralABMDriver
+@everywhere include("src/RuralABMDriver.jl")
 
 Run_RuralABM(
    SOCIAL_NETWORKS = 10,
