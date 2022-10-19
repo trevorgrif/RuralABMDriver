@@ -1,7 +1,7 @@
 using Distributed
 @everywhere using Pkg
 @everywhere Pkg.activate(".")
-@everywhere using RuralABMManager
+@everywhere using RuralABMDriver
 
 Run_RuralABM(
    SOCIAL_NETWORKS = 10,
