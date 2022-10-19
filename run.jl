@@ -3,7 +3,7 @@ using Distributed
 @everywhere Pkg.activate(".")
 @everywhere include("src/RuralABMDriver.jl")
 
-Run_RuralABM(
+RuralABMDriver.Run_RuralABM(
    SOCIAL_NETWORKS = 10,
    NETWORK_LENGTH = 30,
    MASKING_LEVELS = 5,
