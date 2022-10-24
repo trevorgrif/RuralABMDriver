@@ -34,6 +34,7 @@ Run the RuralABM package with default parameters.
         NETWORK_LENGTH = 30,
         MASKING_LEVELS = 5,
         VACCINATION_LEVELS = 5,
+        DISTRIBUTION_TYPE = [0, 0],
         MODEL_RUNS = 100,
         TOWN_NAMES = ["small"],
         OUTPUT_TOWN_INDEX = 1,
@@ -43,7 +44,7 @@ Run the RuralABM package with default parameters.
         build_output_dirs(SOCIAL_NETWORKS, TOWN_NAMES, OUTPUT_TOWN_INDEX, OUTPUT_DIR)
 
         # Store Model in End State
-        begin_simulations(SOCIAL_NETWORKS, MASKING_LEVELS, VACCINATION_LEVELS, MODEL_RUNS, NETWORK_LENGTH, TOWN_NAMES, OUTPUT_TOWN_INDEX, OUTPUT_DIR)
+        begin_simulations(SOCIAL_NETWORKS, MASKING_LEVELS, VACCINATION_LEVELS, DISTRIBUTION_TYPE, MODEL_RUNS, NETWORK_LENGTH, TOWN_NAMES, OUTPUT_TOWN_INDEX, OUTPUT_DIR)
     end
 
 """
@@ -73,7 +74,7 @@ Generate the directories for `x` social networks for towns in the list `l` at th
 
 Run RuralABM simulations based on the values passed. See documentation of Run_RuralABM for details.
 """
-    function begin_simulations(town_networks::Int, mask_levels::Int, vaccine_levels::Int, runs::Int, duration_days_network, towns, output_town_index::Int, OUTPUT_DIR)
+    function begin_simulations(town_networks::Int, mask_levels::Int, vaccine_levels::Int, distribution_type::Vector{Int64}, runs::Int, duration_days_network, towns, output_town_index::Int, OUTPUT_DIR)
         # Compute target levels for masks and vaccines
         mask_incr = floor(100/mask_levels)
         vacc_incr = floor(100/vaccine_levels)
@@ -116,13 +117,19 @@ Run RuralABM simulations based on the values passed. See documentation of Run_Ru
                         model_precontagion = deepcopy(ModelSocialNetwork)
 
                         # Apply masking to town
-                        mask_id_arr = Get_Portion_Random(model_precontagion, mask_lvl/100, [(x)->x.age >= 2])
-                        #mask_id_arr = Get_Portion_Watts(model_precontagion, mask_lvl/100)
+                        if distribution_type[1] == 0
+                            mask_id_arr = Get_Portion_Random(model_precontagion, mask_lvl/100, [(x)->x.age >= 2])
+                        elseif distribution_type[1] == 1
+                            mask_id_arr = Get_Portion_Watts(model_precontagion, mask_lvl/100)
+                        end
                         Update_Agents_Attribute!(model_precontagion, mask_id_arr, :will_mask, [true, true, true])
 
                         # Apply vaccination level to town
-                        vaccinated_id_arr = Get_Portion_Random(model_precontagion, vacc_lvl/100, [(x)-> x.age > 4 && x.age < 18, (x)->x.age >= 18], [0.34, 0.66])
-                        #vaccinated_id_arr = Get_Portion_Watts(model_precontagion, vacc_lvl/100)
+                        if distribution_type[2] == 0
+                            vaccinated_id_arr = Get_Portion_Random(model_precontagion, vacc_lvl/100, [(x)-> x.age > 4 && x.age < 18, (x)->x.age >= 18], [0.34, 0.66])
+                        elseif distribution_type[2] == 1
+                            vaccinated_id_arr = Get_Portion_Watts(model_precontagion, vacc_lvl/100)
+                        end
                         Update_Agents_Attribute!(model_precontagion, vaccinated_id_arr, :status, :V)
                         Update_Agents_Attribute!(model_precontagion, vaccinated_id_arr, :vaccinated, true)
 

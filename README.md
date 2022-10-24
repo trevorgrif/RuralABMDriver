@@ -1,6 +1,6 @@
 # RuralABMDriver
 
-# Running the Model
+## Running the Model
 ABM_Bulk_Run provides the framework for running and extracting data on the ABM for multiple target towns. To begin a bulk run on the ABM simply modify and run `run.jl` in Julia with  
 
     include("run.jl")
@@ -9,7 +9,7 @@ or by passing the script to Julia at the command line with
 
     julia run.jl
 
-# Altering Script Parameters
+## Altering Script Parameters
 Bulk run variables can be altered within `run.jl` and are described below:
 
 - **SOCIAL_NETWORKS**: Multiplicity of social network construction for each town construction (i.e. number of times run_model() is called without contagion)  
@@ -20,7 +20,7 @@ Bulk run variables can be altered within `run.jl` and are described below:
 - **TOWN_NAMES**: Array of strings containing the target town names (Available towns: "Dubois" and "Grangeville")  
 - **OUTPUT_TOWN_INDEX**: Int appended to outfile file name to index town constructions
 
-# Structure of the Output Folder
+## Structure of the Output Folder
 The script `run.jl` will generate an "output" directory which contains certain epidemiology data. Due to the complexity and multiplicity of the model, the output file gets quite large and has a directory hierarchy system to assist in sorting the results. In order to understand the output structure it'll be helpful to remember the four critical stochastic steps in the model for each town:
 
 1. Town Construction
@@ -58,7 +58,7 @@ Transmission networks and agent data are also stored out after step *(4)* and fo
 
 The agent data includes the daily count of infected, susceptible, recovered, and population.
 
-# Description of Collected Data
+## Description of Collected Data
 - **Social Contact Matrices**: adjaceny matrices where each component is divided by the total time steps in hours.
 - **Transmission Network**: Three column csv with *agent_id*, *infected_by*, and *time_of_infection*
 - (NOT YET EXTRACTED) At the end of each day populate a row in a DataFrame with certain agent data:
