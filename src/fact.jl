@@ -13,7 +13,7 @@ function _create_fact_schema(connection)
     query = """
         CREATE SCHEMA IF NOT EXISTS FCT;
     """
-    run_query(query, connection = connection)
+    _run_query(query, connection = connection)
 end
 
 #=
@@ -24,7 +24,7 @@ function _load_epidemic_fact_table(connection)
     query = """
         DROP TABLE IF EXISTS FCT.EpidemicReport;
     """
-    run_query(query, connection = connection)
+    _run_query(query, connection = connection)
 
     query = """
         CREATE TABLE FCT.EpidemicReport(
@@ -39,7 +39,7 @@ function _load_epidemic_fact_table(connection)
             PRIMARY KEY (EpidemicID, BehaviorID, NetworkID, TownID)
             );
     """
-    run_query(query, connection = connection)
+    _run_query(query, connection = connection)
 
     query = """
     INSERT INTO FCT.EpidemicReport
@@ -62,7 +62,7 @@ function _load_epidemic_fact_table(connection)
         MaskPortion,
         VaxPortion
     """
-    run_query(query, connection = connection)
+    _run_query(query, connection = connection)
     return true
     
 end

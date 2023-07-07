@@ -13,7 +13,7 @@ Run the RuralABM package with default parameters.
 - `OUTPUT_TOWN_INDEX=1`: Index value appended to the town name in the output file directory.
 - `OUTPUT_DIR="../output": Default output directory location.
 """
-function Run_RuralABM(;
+function run_ruralABM(;
     SOCIAL_NETWORKS = 10,
     NETWORK_LENGTH = 30,
     MASKING_LEVELS = 5,
@@ -23,7 +23,7 @@ function Run_RuralABM(;
     TOWN_NAMES = ["small"],
     )
 
-    run_ruralABM(
+    _run_ruralABM(
         SOCIAL_NETWORKS = SOCIAL_NETWORKS,
         NETWORK_LENGTH = NETWORK_LENGTH,
         MASKING_LEVELS = MASKING_LEVELS,
@@ -39,24 +39,24 @@ end
 
 Run a query on the database.
 """
-function Run_Query(query; connection = create_default_connection())
-    run_query(query, connection = connection)
+function run_query(query; connection = _create_default_connection())
+    _run_query(query, connection = connection)
 end
 
 # Make a global variable to store connection details, this will be called 
-function Create_Database_Structure()    
-    create_database_structure()
+function create_database_structure()    
+    _create_database_structure()
 end
 
-function Drop_Database_Structure()
-    drop_database_structure()
+function drop_database_structure()
+    _drop_database_structure()
 end
 
-function analyze_landing(connection = create_default_connection())
+function analyze_landing(connection = _create_default_connection())
     _load_staging_tables(connection)
 end
 
-function analyze_staging(connection = create_default_connection())
+function analyze_staging(connection = _create_default_connection())
     _load_fact_tables(connection)
 end
     

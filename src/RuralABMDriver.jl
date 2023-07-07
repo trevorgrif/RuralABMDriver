@@ -4,10 +4,10 @@ using Distributed
 
 export 
 
-Run_RuralABM,
-Run_Query,
-Create_Database_Structure,
-Drop_Database_Structure,
+run_ruralABM,
+run_query,
+create_database_structure,
+drop_database_structure,
 analyze_landing,
 analyze_staging
 

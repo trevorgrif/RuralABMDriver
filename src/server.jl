@@ -3,7 +3,7 @@
 
 Run a query on the database.
 """
-function run_query(query; connection = create_default_connection())
+function _run_query(query; connection = _create_default_connection())
     DBInterface.execute(connection, query)
 end
 
@@ -15,7 +15,7 @@ Create a DBInterface connection to a databse.
 # kwargs
 - `database`: The path to the database file.
 """
-function create_default_connection(;database = "data/GDWLND.duckdb")
+function _create_default_connection(;database = "data/GDWLND.duckdb")
     isdir(dirname(database)) || mkdir(dirname(database))
     return DBInterface.connect(DuckDB.DB, database)
 end
@@ -24,21 +24,21 @@ end
 #   Table & Key Sequence Creation    #
 ######################################
 
-function create_database_structure()
+function _create_database_structure()
     # Create the database structure
-    create_tables()
-    create_sequences()
-    import_population_data()
+    _create_tables()
+    _create_sequences()
+    _import_population_data()
 end
 
-function drop_database_structure()
+function _drop_database_structure()
     # Drop the database structure
-    drop_tables()
-    drop_sequences()
-    drop_parquet_files()
+    _drop_tables()
+    _drop_sequences()
+    _drop_parquet_files()
 end
 
-function create_tables()
+function _create_tables()
     query_list = []
     append!(query_list, ["CREATE OR REPLACE TABLE PopulationDim (PopulationID USMALLINT PRIMARY KEY, Description VARCHAR)"])
     append!(query_list, ["CREATE OR REPLACE TABLE PopulationLoad (PopulationID USMALLINT, AgentID INT, HouseID INT, AgeRangeID VARCHAR, Sex VARCHAR, IncomeRange VARCHAR, PRIMARY KEY (PopulationID, AgentID))"])
@@ -57,11 +57,11 @@ function create_tables()
     append!(query_list, ["CREATE OR REPLACE TABLE EpidemicLoad (EpidemicID UINTEGER, Day USMALLINT, Symptomatic USMALLINT, Recovered USMALLINT, PopulationLiving USMALLINT, PRIMARY KEY (EpidemicID, Day))"])
 
     for query in query_list
-        run_query(query)
+        _run_query(query)
     end
 end
 
-function drop_tables()
+function _drop_tables()
     query_list = []
     append!(query_list, ["DROP TABLE IF EXISTS PopulationDim"])
     append!(query_list, ["DROP TABLE IF EXISTS PopulationLoad"])
@@ -80,11 +80,11 @@ function drop_tables()
     append!(query_list, ["DROP TABLE IF EXISTS EpidemicSCMLoad"])
 
     for query in query_list
-        run_query(query)
+        _run_query(query)
     end
 end
 
-function create_sequences()
+function _create_sequences()
     query_list = []
     append!(query_list, ["CREATE SEQUENCE PopulationDimSequence START 1"])
     append!(query_list, ["CREATE SEQUENCE TownDimSequence START 1"])
@@ -95,11 +95,11 @@ function create_sequences()
     append!(query_list, ["CREATE SEQUENCE EpidemicDimSequence START 1"])
 
     for query in query_list
-        run_query(query)
+        _run_query(query)
     end
 end
 
-function drop_sequences()
+function _drop_sequences()
     query_list = []
     append!(query_list, ["DROP SEQUENCE IF EXISTS PopulationDimSequence"])
     append!(query_list, ["DROP SEQUENCE IF EXISTS TownDimSequence"])
@@ -110,21 +110,21 @@ function drop_sequences()
     append!(query_list, ["DROP SEQUENCE IF EXISTS EpidemicDimSequence"])
 
     for query in query_list
-        run_query(query)
+        _run_query(query)
     end
 end
 
-function verify_database_structure()
+function _verify_database_structure()
     # Verify that the database has the correct structure TODO
     return true
 end
 
-function import_population_data()
-    import_small_town_population()
-    import_large_town_population()
+function _import_population_data()
+    _import_small_town_population()
+    _import_large_town_population()
 end
 
-function import_small_town_population()
+function _import_small_town_population()
     if !isdir("lib/RuralABM/data/example_towns/small_town") 
         @warn "The small town data directory does not exist"
         return
@@ -147,11 +147,11 @@ function import_small_town_population()
         SELECT nextval('PopulationDimSequence') AS PopulationID, 'A small town of 386 residents' AS Description
         RETURNING PopulationID
     """
-    Result = run_query(query) |> DataFrame
+    Result = _run_query(query) |> DataFrame
     PopulationID = Result[1, 1]
 
     # Add Population data to PopulationDim
-    connection = create_default_connection()
+    connection = _create_default_connection()
     DuckDB.register_data_frame(connection, population, "population")
     query = """
         INSERT INTO PopulationLoad 
@@ -159,12 +159,12 @@ function import_small_town_population()
         FROM population 
         WHERE HouseID <> 'NA'
     """
-    run_query(query, connection = connection)
-    run_query("DROP VIEW population", connection = connection)
+    _run_query(query, connection = connection)
+    _run_query("DROP VIEW population", connection = connection)
     DuckDB.close(connection)
 end
 
-function import_large_town_population()
+function _import_large_town_population()
     if !isdir("lib/RuralABM/data/example_towns/large_town") 
         @warn "The large town data directory does not exist"
         return
@@ -187,11 +187,11 @@ function import_large_town_population()
         SELECT nextval('PopulationDimSequence') AS PopulationID, 'A large town of 5129 residents' AS Description
         RETURNING PopulationID
     """
-    Result = run_query(query) |> DataFrame
+    Result = _run_query(query) |> DataFrame
     PopulationID = Result[1, 1]
 
     # Add Population data to PopulationDim
-    connection = create_default_connection()
+    connection = _create_default_connection()
     DuckDB.register_data_frame(connection, population, "population")
     query = """
         INSERT INTO PopulationLoad 
@@ -199,12 +199,12 @@ function import_large_town_population()
         FROM population 
         WHERE HouseID <> 'NA'
     """
-    run_query(query, connection = connection)
-    run_query("DROP VIEW population", connection = connection)
+    _run_query(query, connection = connection)
+    _run_query("DROP VIEW population", connection = connection)
     DuckDB.close(connection)
 end
 
-function drop_parquet_files()
+function _drop_parquet_files()
     rm("data/EpidemicSCMLoad", recursive = true)
 end
 

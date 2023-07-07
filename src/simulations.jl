@@ -12,7 +12,7 @@ Run the RuralABM package with default parameters.
 - `MODEL_RUNS=100`: Multiplicity model runs with disease spread (Range: 1 -> infty).
 - `TOWN_NAMES=["Dubois"]`: Towns which will be run. Ensure input data exist for target towns.
 """
-function run_ruralABM(;
+function _run_ruralABM(;
     SOCIAL_NETWORKS::Int = 10,
     NETWORK_LENGTH::Int = 30,
     MASKING_LEVELS::Int = 5,
@@ -32,11 +32,11 @@ function run_ruralABM(;
     @assert MODEL_RUNS > 0 "MODEL_RUNS must be greater than 0"
 
     # Establish connection to database and verify database structure (TODO: allow for database to be passed in)
-    connection = create_default_connection()
-    @assert verify_database_structure() "database structure is not valid"
+    connection = _create_default_connection()
+    @assert _verify_database_structure() "database structure is not valid"
 
     # Run simulations in parallel
-    begin_simulations(SOCIAL_NETWORKS, MASKING_LEVELS, VACCINATION_LEVELS, DISTRIBUTION_TYPE, MODEL_RUNS, NETWORK_LENGTH, TOWN_NAMES)
+    _begin_simulations(SOCIAL_NETWORKS, MASKING_LEVELS, VACCINATION_LEVELS, DISTRIBUTION_TYPE, MODEL_RUNS, NETWORK_LENGTH, TOWN_NAMES)
 end
 
 """
@@ -44,12 +44,12 @@ end
 
 Run RuralABM simulations based on the values passed. See documentation of Run_RuralABM for details.
 """
-function begin_simulations(town_networks::Int, mask_levels::Int, vaccine_levels::Int, distribution_type::Vector{Int64}, runs::Int, duration_days_network, towns; STORE_NETWORK_SCM::Bool = true, STORE_EPIDEMIC_SCM::Bool = true)
+function _begin_simulations(town_networks::Int, mask_levels::Int, vaccine_levels::Int, distribution_type::Vector{Int64}, runs::Int, duration_days_network, towns; STORE_NETWORK_SCM::Bool = true, STORE_EPIDEMIC_SCM::Bool = true)
     # Compute target levels for masks and vaccines
     mask_incr = floor(100/mask_levels)
     vacc_incr = floor(100/vaccine_levels)
 
-    connection = create_default_connection()
+    connection = _create_default_connection()
 
     distribution_type[1] == 0 ? MaskDistributionType = "Random" : MaskDistributionType = "Watts"
     distribution_type[2] == 0 ? VaxDistributionType = "Random" : VaxDistributionType = "Watts"
@@ -78,9 +78,9 @@ function begin_simulations(town_networks::Int, mask_levels::Int, vaccine_levels:
             FROM TownSummaryDF
             RETURNING TownID
         """
-        Result = run_query(query, connection = connection) |> DataFrame
+        Result = _run_query(query, connection = connection) |> DataFrame
         TownID = Result[1,1]
-        run_query("DROP VIEW TownSummaryDF", connection = connection)
+        _run_query("DROP VIEW TownSummaryDF", connection = connection)
 
 
         # Insert business structure data
@@ -92,8 +92,8 @@ function begin_simulations(town_networks::Int, mask_levels::Int, vaccine_levels:
                 *,
             FROM BusinessStructureDF
         """
-        run_query(query, connection = connection)
-        run_query("DROP VIEW BusinessStructureDF", connection = connection)
+        _run_query(query, connection = connection)
+        _run_query("DROP VIEW BusinessStructureDF", connection = connection)
 
         # Insert household structure data 
         DuckDB.register_data_frame(connection, houseStructureDF, "HouseStructureDF")
@@ -104,8 +104,8 @@ function begin_simulations(town_networks::Int, mask_levels::Int, vaccine_levels:
                 *,
             FROM HouseStructureDF
         """
-        run_query(query, connection = connection)
-        run_query("DROP VIEW HouseStructureDF", connection = connection)
+        _run_query(query, connection = connection)
+        _run_query("DROP VIEW HouseStructureDF", connection = connection)
 
         # Generate social network models and collect compact adjacency matrices
         ResultsPostSocialNetworks = pmap((x,y) -> Run_Model!(x, duration = y), [deepcopy(model_raw) for x in 1:town_networks], fill(duration_days_network, town_networks))
@@ -127,7 +127,7 @@ function begin_simulations(town_networks::Int, mask_levels::Int, vaccine_levels:
                     $duration_days_network
                 RETURNING NetworkID
             """
-            Results = run_query(query, connection = connection) |> DataFrame
+            Results = _run_query(query, connection = connection) |> DataFrame
             NetworkID = Results[1,1]
             append!(NetworkdIDs, NetworkID)
 
@@ -170,7 +170,7 @@ function begin_simulations(town_networks::Int, mask_levels::Int, vaccine_levels:
                         WHERE MaskPortion = $mask_lvl 
                         AND VaxPortion = $vacc_lvl
                     """
-                    Result = run_query(query, connection = connection) |> DataFrame
+                    Result = _run_query(query, connection = connection) |> DataFrame
                     if size(Result)[1] == 0
                         query = """
                             INSERT INTO MaskVaxDim
@@ -180,7 +180,7 @@ function begin_simulations(town_networks::Int, mask_levels::Int, vaccine_levels:
                                 $vacc_lvl
                             RETURNING MaskVaxID
                         """
-                        Result = run_query(query, connection = connection) |> DataFrame
+                        Result = _run_query(query, connection = connection) |> DataFrame
                         MaskVaxID = Result[1,1]
                     else
                         MaskVaxID = Result[1,1]
@@ -195,7 +195,7 @@ function begin_simulations(town_networks::Int, mask_levels::Int, vaccine_levels:
                             $MaskVaxID
                         RETURNING BehaviorID
                     """
-                    Result = run_query(query, connection = connection) |> DataFrame
+                    Result = _run_query(query, connection = connection) |> DataFrame
                     BehaviorID = Result[1,1]
 
                     # Make a copy of the model
@@ -264,7 +264,7 @@ function begin_simulations(town_networks::Int, mask_levels::Int, vaccine_levels:
                                 $(SummaryStatistics[epidemicIdx][1,7])
                             RETURNING EpidemicID
                         """
-                        Result = run_query(query, connection = connection) |> DataFrame
+                        Result = _run_query(query, connection = connection) |> DataFrame
                         EpidemicID = Result[1,1]
                         append!(EpidemicIDs, EpidemicID)
 
@@ -277,8 +277,8 @@ function begin_simulations(town_networks::Int, mask_levels::Int, vaccine_levels:
                                 *
                             FROM AgentDataArrayDaily$(epidemicIdx)
                         """
-                        run_query(query, connection = connection)
-                        run_query("DROP VIEW AgentDataArrayDaily$(epidemicIdx)", connection = connection)
+                        _run_query(query, connection = connection)
+                        _run_query("DROP VIEW AgentDataArrayDaily$(epidemicIdx)", connection = connection)
 
 
                         # Populate TransmissionLoad
@@ -290,8 +290,8 @@ function begin_simulations(town_networks::Int, mask_levels::Int, vaccine_levels:
                                 *
                             FROM TransmissionData$(epidemicIdx)
                         """
-                        run_query(query, connection = connection)
-                        run_query("DROP VIEW TransmissionData$(epidemicIdx)", connection = connection)
+                        _run_query(query, connection = connection)
+                        _run_query("DROP VIEW TransmissionData$(epidemicIdx)", connection = connection)
                     end
 
                     # Populate EpidemicSCMLoad
@@ -308,8 +308,8 @@ function begin_simulations(town_networks::Int, mask_levels::Int, vaccine_levels:
                                 *
                             FROM SocialContactMatricesCompact
                         """
-                        run_query(query, connection = connection)
-                        run_query("DROP VIEW SocialContactMatricesCompact", connection = connection)
+                        _run_query(query, connection = connection)
+                        _run_query("DROP VIEW SocialContactMatricesCompact", connection = connection)
                     end
 
                     # Forced Garbage Collection

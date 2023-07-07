@@ -9,14 +9,14 @@ function _create_staging_schema(connection)
     query = """
         CREATE SCHEMA IF NOT EXISTS STG;
     """
-    run_query(query, connection = connection)
+    _run_query(query, connection = connection)
 end
 
 function _load_epidemic_results_table(connection)
     query = """
         DROP TABLE IF EXISTS STG.EpidemicResults;
     """
-    run_query(query, connection = connection)
+    _run_query(query, connection = connection)
 
     query = """
         CREATE TABLE STG.EpidemicResults(
@@ -45,7 +45,7 @@ function _load_epidemic_results_table(connection)
             PRIMARY KEY (EpidemicID, BehaviorID, NetworkID, TownID)
             );
     """
-    run_query(query, connection = connection)
+    _run_query(query, connection = connection)
 
     query = """
     INSERT INTO STG.EpidemicResults
@@ -124,7 +124,7 @@ function _load_epidemic_results_table(connection)
     LEFT JOIN EpidemicSCMLoad 
     ON EpidemicSCMLoad.EpidemicID = EpidemicDim.EpidemicID
     """
-    run_query(query, connection = connection) 
+    _run_query(query, connection = connection) 
     
     return true
 end
