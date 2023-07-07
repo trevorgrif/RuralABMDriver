@@ -7,7 +7,9 @@ export
 Run_RuralABM,
 Run_Query,
 Create_Database_Structure,
-Drop_Database_Structure
+Drop_Database_Structure,
+analyze_landing,
+analyze_staging
 
 # Modules used for parallel computing
 @everywhere using RuralABM
@@ -21,5 +23,8 @@ Drop_Database_Structure
 include("api.jl")
 include("server.jl")
 include("simulations.jl")
+include("stage.jl")
+include("report.jl")
+include("fact.jl")
 
 end

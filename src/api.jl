@@ -43,7 +43,6 @@ function Run_Query(query; connection = create_default_connection())
     run_query(query, connection = connection)
 end
 
-
 # Make a global variable to store connection details, this will be called 
 function Create_Database_Structure()    
     create_database_structure()
@@ -52,3 +51,12 @@ end
 function Drop_Database_Structure()
     drop_database_structure()
 end
+
+function analyze_landing(connection = create_default_connection())
+    _load_staging_tables(connection)
+end
+
+function analyze_staging(connection = create_default_connection())
+    _load_fact_tables(connection)
+end
+    

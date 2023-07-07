@@ -246,7 +246,6 @@ function begin_simulations(town_networks::Int, mask_levels::Int, vaccine_levels:
 
                     # Analyze the output
                     AgentDataArrayDaily = pmap(Get_Daily_Agentdata, [x[2] for x in ModelRunsOutput]) # Probably faster not pmapped
-                    SocialContactMatrices1DF = DataFrame(SocialContactMatrices1, :auto) # Probably better to leave as vector
 
                     EpidemicIDs = []
                     for epidemicIdx in 1:runs
@@ -297,17 +296,20 @@ function begin_simulations(town_networks::Int, mask_levels::Int, vaccine_levels:
 
                     # Populate EpidemicSCMLoad
                     if STORE_EPIDEMIC_SCM
-                        isdir("data/EpidemicSCMLoad/") || mkdir("data/EpidemicSCMLoad/")
-                        insert!(SocialContactMatrices1DF, 1, EpidemicIDs)
-                        write_parquet("data/EpidemicSCMLoad/$(BehaviorID).parquet", SocialContactMatrices1DF)
-
-                        # Create view into parquet file
+                        # Make a DataFrame with the first column being the EpidemicID and the second column being the SCM as a comma delimited string
+                        SocialContactMatrices1DF = DataFrame(SocialContactMatrices1, :auto)
+                        SocialContactMatricesCompact = DataFrame(EpidemicID = convert.(Int64,EpidemicIDs), SCM = [join(x[2:end], ",") for x in eachcol(SocialContactMatrices1DF)])
+                        
+                        # Populate into EpidemicSCMLoad
+                        DuckDB.register_data_frame(connection, SocialContactMatricesCompact, "SocialContactMatricesCompact")
                         query = """
-                            CREATE VIEW EpidemicSCMLoad_$BehaviorID AS
-                                SELECT * 
-                                FROM 'data/EpidemicSCMLoad/$(BehaviorID).parquet';
+                            INSERT INTO EpidemicSCMLoad
+                            SELECT 
+                                *
+                            FROM SocialContactMatricesCompact
                         """
                         run_query(query, connection = connection)
+                        run_query("DROP VIEW SocialContactMatricesCompact", connection = connection)
                     end
 
                     # Forced Garbage Collection
