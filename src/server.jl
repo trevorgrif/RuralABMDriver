@@ -205,7 +205,11 @@ function _import_large_town_population()
 end
 
 function _drop_parquet_files()
-    rm("data/EpidemicSCMLoad", recursive = true)
+    try
+        rm("data/EpidemicSCMLoad", recursive = true)
+    catch
+        @warn "EpidemicSCMLoad parquet file does not exist"
+    end
 end
 
 # support for running multiple queries without closing and opening the connection
