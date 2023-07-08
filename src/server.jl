@@ -212,6 +212,10 @@ function _drop_parquet_files()
     end
 end
 
+function _export_database(filepath, connection)
+    _run_query("EXPORT DATABASE '$(filepath)' (FORMAT PARQUET)", connection = connection)
+end
+
 # support for running multiple queries without closing and opening the connection
 
 # Delete directory

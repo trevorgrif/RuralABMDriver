@@ -59,4 +59,8 @@ end
 function analyze_staging(connection = _create_default_connection())
     _load_fact_tables(connection)
 end
+
+function export_database(filepath, connection = _create_default_connection())
+    _export_database(filepath, connection)
+end
     

@@ -9,7 +9,8 @@ run_query,
 create_database_structure,
 drop_database_structure,
 analyze_landing,
-analyze_staging
+analyze_staging,
+export_database
 
 # Modules used for parallel computing
 @everywhere using RuralABM
