@@ -21,6 +21,8 @@ function run_ruralABM(;
     DISTRIBUTION_TYPE = [0, 0],
     MODEL_RUNS = 100,
     TOWN_NAMES = ["small"],
+    STORE_NETWORK_SCM = true,
+    STORE_EPIDEMIC_SCM = true
     )
 
     _run_ruralABM(
@@ -31,6 +33,8 @@ function run_ruralABM(;
         DISTRIBUTION_TYPE = DISTRIBUTION_TYPE,
         MODEL_RUNS = MODEL_RUNS,
         TOWN_NAMES = TOWN_NAMES,
+        STORE_NETWORK_SCM = STORE_NETWORK_SCM,
+        STORE_EPIDEMIC_SCM = STORE_EPIDEMIC_SCM
     )
 end
 

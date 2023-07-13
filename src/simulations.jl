@@ -19,7 +19,9 @@ function _run_ruralABM(;
     VACCINATION_LEVELS::Int = 5,
     DISTRIBUTION_TYPE = [0, 0],
     MODEL_RUNS::Int = 100,
-    TOWN_NAMES = ["small"]
+    TOWN_NAMES = ["small"],
+    STORE_NETWORK_SCM = true,
+    STORE_EPIDEMIC_SCM = true
     )
     # Verify input parameters
     @assert SOCIAL_NETWORKS > 0 "SOCIAL_NETWORKS must be greater than 0"
@@ -36,7 +38,7 @@ function _run_ruralABM(;
     @assert _verify_database_structure() "database structure is not valid"
 
     # Run simulations in parallel
-    _begin_simulations(SOCIAL_NETWORKS, MASKING_LEVELS, VACCINATION_LEVELS, DISTRIBUTION_TYPE, MODEL_RUNS, NETWORK_LENGTH, TOWN_NAMES)
+    _begin_simulations(SOCIAL_NETWORKS, MASKING_LEVELS, VACCINATION_LEVELS, DISTRIBUTION_TYPE, MODEL_RUNS, NETWORK_LENGTH, TOWN_NAMES,  STORE_NETWORK_SCM = STORE_NETWORK_SCM, STORE_EPIDEMIC_SCM = STORE_EPIDEMIC_SCM)
 end
 
 """
