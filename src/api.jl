@@ -43,6 +43,10 @@ function run_query(query; connection = _create_default_connection())
     _run_query(query, connection = connection)
 end
 
+macro query(query)
+    return run_query(query)
+end
+
 # Make a global variable to store connection details, this will be called 
 function create_database_structure()    
     _create_database_structure()

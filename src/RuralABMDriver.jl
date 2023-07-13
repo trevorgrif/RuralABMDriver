@@ -11,7 +11,8 @@ drop_database_structure,
 analyze_landing,
 analyze_staging,
 export_database,
-load_exported_db
+load_exported_db,
+@query
 
 # Modules used for parallel computing
 @everywhere using RuralABM
