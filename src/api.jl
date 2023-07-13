@@ -64,3 +64,77 @@ function export_database(filepath, connection = _create_default_connection())
     _export_database(filepath, connection)
 end
     
+function load_exported_db(filepath)
+    # Check if machine is windows or linux
+    if Sys.iswindows()
+        # Check `data` directory exists
+        if !isdir("data")
+            mkdir("data")
+        end
+
+        # check filepath\schema.sql exists
+        if !isfile("$(filepath)\\schema.sql")
+            error("$(filepath)\\schema.sql does not exist")
+        end
+
+        # read filepath\schema.sql line by line ignoring empty lines
+        open("$(filepath)\\schema.sql") do file
+            for line in eachline(file)
+                if line != "" && line != ";"
+                    # run query
+                    _run_query("""$line""")
+                end
+            end
+        end
+
+        # check filepath\load.sql exists
+        if !isfile("$(filepath)\\load.sql")
+            error("$(filepath)\\load.sql does not exist")
+        end
+
+        # read filepath\load.sql line by line ignoring empty lines
+        open("$(filepath)\\load.sql") do file
+            for line in eachline(file)
+                if line != "" && line != ";"
+                    # run query
+                    _run_query("""$line""")
+                end
+            end
+        end
+    else
+        # Check `data` directory exists
+        if !isdir("data")
+            mkdir("data")
+        end
+
+        # check filepath/schema.sql exists
+        if !isfile("$(filepath)/schema.sql")
+            error("$(filepath)/schema.sql does not exist")
+        end
+
+        # read filepath/schema.sql line by line ignoring empty lines
+        open("$(filepath)/schema.sql") do file
+            for line in eachline(file)
+                if line != "" && line != ";"
+                    # run query
+                    _run_query("""$line""")
+                end
+            end
+        end
+
+        # check filepath/load.sql exists
+        if !isfile("$(filepath)/load.sql")
+            error("$(filepath)/load.sql does not exist")
+        end
+
+        # read filepath/load.sql line by line ignoring empty lines
+        open("$(filepath)/load.sql") do file
+            for line in eachline(file)
+                if line != "" && line != ";"
+                    # run query
+                    _run_query("""$line""")
+                end
+            end
+        end
+    end
+end
