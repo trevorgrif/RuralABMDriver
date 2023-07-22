@@ -339,8 +339,11 @@ uuid = "fa6b7ba4-c1ee-5f82-b5fc-ecf0adba8f74"
 version = "0.6.8"
 
 [[deps.DuckDB]]
-deps = ["DBInterface", "DataFrames", "Dates", "DuckDB_jll", "FixedPointDecimals", "Tables", "UUIDs", "WeakRefStrings"]
-git-tree-sha1 = "88cd745f64a570e7f865c49c17f59822f7f7e47b"
+deps = ["DBInterface", "Dates", "DuckDB_jll", "FixedPointDecimals", "Tables", "UUIDs", "WeakRefStrings"]
+git-tree-sha1 = "0cf981f3aa7f9a49194980ecfe0c4865e4424aa4"
+repo-rev = "master"
+repo-subdir = "tools/juliapkg"
+repo-url = "https://github.com/duckdb/duckdb.git"
 uuid = "d2f5444f-75bc-4fdf-ac35-56f514c445e1"
 version = "0.8.1"
 
