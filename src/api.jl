@@ -13,7 +13,7 @@ Run the RuralABM package with default parameters.
 - `OUTPUT_TOWN_INDEX=1`: Index value appended to the town name in the output file directory.
 - `OUTPUT_DIR="../output": Default output directory location.
 """
-function run_ruralABM(;
+function run_ruralABM(connection;
     SOCIAL_NETWORKS = 10,
     NETWORK_LENGTH = 30,
     MASKING_LEVELS = 5,
@@ -26,6 +26,7 @@ function run_ruralABM(;
     )
 
     _run_ruralABM(
+        connection,
         SOCIAL_NETWORKS = SOCIAL_NETWORKS,
         NETWORK_LENGTH = NETWORK_LENGTH,
         MASKING_LEVELS = MASKING_LEVELS,
@@ -43,12 +44,14 @@ end
 
 Run a query on the database.
 """
-function run_query(query; connection = _create_default_connection())
+function run_query(query, connection)
     _run_query(query, connection = connection)
 end
 
 macro query(query)
-    return run_query(query)
+    connection = _create_default_connection()
+    result = run_query(query, connection) |> DataFrame
+    return result
 end
 
 # Make a global variable to store connection details, this will be called 
@@ -145,4 +148,12 @@ function load_exported_db(filepath)
             end
         end
     end
+end
+
+function connect_to_database()
+    _create_default_connection()
+end
+
+function disconnect_from_database!(connection)
+    DuckDB.close_database(connection)
 end

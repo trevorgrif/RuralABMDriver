@@ -12,6 +12,8 @@ analyze_landing,
 analyze_staging,
 export_database,
 load_exported_db,
+connect_to_database,
+disconnect_from_database,
 @query
 
 # Modules used for parallel computing

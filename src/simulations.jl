@@ -12,7 +12,7 @@ Run the RuralABM package with default parameters.
 - `MODEL_RUNS=100`: Multiplicity model runs with disease spread (Range: 1 -> infty).
 - `TOWN_NAMES=["Dubois"]`: Towns which will be run. Ensure input data exist for target towns.
 """
-function _run_ruralABM(;
+function _run_ruralABM(connection;
     SOCIAL_NETWORKS::Int = 10,
     NETWORK_LENGTH::Int = 30,
     MASKING_LEVELS::Int = 5,
@@ -34,11 +34,11 @@ function _run_ruralABM(;
     @assert MODEL_RUNS > 0 "MODEL_RUNS must be greater than 0"
 
     # Establish connection to database and verify database structure (TODO: allow for database to be passed in)
-    connection = _create_default_connection()
-    @assert _verify_database_structure() "database structure is not valid"
+    # connection = _create_default_connection()
+    # @assert _verify_database_structure() "database structure is not valid"
 
     # Run simulations in parallel
-    _begin_simulations(SOCIAL_NETWORKS, MASKING_LEVELS, VACCINATION_LEVELS, DISTRIBUTION_TYPE, MODEL_RUNS, NETWORK_LENGTH, TOWN_NAMES,  STORE_NETWORK_SCM = STORE_NETWORK_SCM, STORE_EPIDEMIC_SCM = STORE_EPIDEMIC_SCM)
+    _begin_simulations(connection, SOCIAL_NETWORKS, MASKING_LEVELS, VACCINATION_LEVELS, DISTRIBUTION_TYPE, MODEL_RUNS, NETWORK_LENGTH, TOWN_NAMES,  STORE_NETWORK_SCM = STORE_NETWORK_SCM, STORE_EPIDEMIC_SCM = STORE_EPIDEMIC_SCM)
 end
 
 """
@@ -46,12 +46,10 @@ end
 
 Run RuralABM simulations based on the values passed. See documentation of Run_RuralABM for details.
 """
-function _begin_simulations(town_networks::Int, mask_levels::Int, vaccine_levels::Int, distribution_type::Vector{Int64}, runs::Int, duration_days_network, towns; STORE_NETWORK_SCM::Bool = true, STORE_EPIDEMIC_SCM::Bool = true)
+function _begin_simulations(connection, town_networks::Int, mask_levels::Int, vaccine_levels::Int, distribution_type::Vector{Int64}, runs::Int, duration_days_network, towns; STORE_NETWORK_SCM::Bool = true, STORE_EPIDEMIC_SCM::Bool = true)
     # Compute target levels for masks and vaccines
     mask_incr = floor(100/mask_levels)
     vacc_incr = floor(100/vaccine_levels)
-
-    connection = _create_default_connection()
 
     distribution_type[1] == 0 ? MaskDistributionType = "Random" : MaskDistributionType = "Watts"
     distribution_type[2] == 0 ? VaxDistributionType = "Random" : VaxDistributionType = "Watts"
@@ -152,12 +150,6 @@ function _begin_simulations(town_networks::Int, mask_levels::Int, vaccine_levels
                 DuckDB.close(NetworkSCMAppender)
             end
         end
-
-        # Forced Garbage Collection
-        ResultsPostSocialNetworks = 0
-        SocialContactMatrices0 = 0
-        SocialContactMatrices0DF = 0
-        GC.gc()
         
         SocialNetworkIndex = 1
         for ModelSocialNetwork in ModelSocialNetworks
@@ -294,44 +286,48 @@ function _begin_simulations(town_networks::Int, mask_levels::Int, vaccine_levels
                         """
                         _run_query(query, connection = connection)
                         _run_query("DROP VIEW TransmissionData$(epidemicIdx)", connection = connection)
-                    end
 
-                    # Populate EpidemicSCMLoad
-                    if STORE_EPIDEMIC_SCM
-                        # Make a DataFrame with the first column being the EpidemicID and the second column being the SCM as a comma delimited string
-                        SocialContactMatrices1DF = DataFrame(SocialContactMatrices1, :auto)
-                        SocialContactMatricesCompact = DataFrame(EpidemicID = convert.(Int64,EpidemicIDs), SCM = [join(x[2:end], ",") for x in eachcol(SocialContactMatrices1DF)])
-                        
-                        # Populate into EpidemicSCMLoad
-                        DuckDB.register_data_frame(connection, SocialContactMatricesCompact, "SocialContactMatricesCompact")
-                        query = """
-                            INSERT INTO EpidemicSCMLoad
-                            SELECT 
-                                *
-                            FROM SocialContactMatricesCompact
-                        """
-                        _run_query(query, connection = connection)
-                        _run_query("DROP VIEW SocialContactMatricesCompact", connection = connection)
+                        # Populate EpidemicSCMLoad
+                        if STORE_EPIDEMIC_SCM
+                            SocialContactMatrices1DF = DataFrame(SocialContactMatrices1, :auto)
+                            for SocialContactMatrix in eachcol(SocialContactMatrices1DF)
+                                EpidemicSCMAppender = DuckDB.Appender(connection, "EpidemicSCMLoad")
+                                
+                                Population = SocialContactMatrix[1] 
+                                EpidemicSCMItr = 2
+                                for agent1 in 1:Population
+                                    for agent2 in agent1+1:Population
+                                        DuckDB.append(EpidemicSCMAppender, EpidemicID)
+                                        DuckDB.append(EpidemicSCMAppender, agent1)
+                                        DuckDB.append(EpidemicSCMAppender, agent2)
+                                        DuckDB.append(EpidemicSCMAppender, SocialContactMatrix[EpidemicSCMItr])
+                                        DuckDB.end_row(EpidemicSCMAppender)
+                                        EpidemicSCMItr += 1
+                                    end
+                                end
+                                DuckDB.close(EpidemicSCMAppender)
+                            end
+                            
+    
+                            # Make a DataFrame with the first column being the EpidemicID and the second column being the SCM as a comma delimited string
+                            # SocialContactMatrices1DF = DataFrame(SocialContactMatrices1, :auto)
+                            # SocialContactMatricesCompact = DataFrame(EpidemicID = convert.(Int64,EpidemicIDs), SCM = [join(x[2:end], ",") for x in eachcol(SocialContactMatrices1DF)])
+                            
+                            # # Populate into EpidemicSCMLoad
+                            # DuckDB.register_data_frame(connection, SocialContactMatricesCompact, "SocialContactMatricesCompact")
+                            # query = """
+                            #     INSERT INTO EpidemicSCMLoad
+                            #     SELECT 
+                            #         *
+                            #     FROM SocialContactMatricesCompact
+                            # """
+                            # _run_query(query, connection = connection)
+                            # _run_query("DROP VIEW SocialContactMatricesCompact", connection = connection)
+                        end
                     end
-
-                    # Forced Garbage Collection
-                    model_precontagion = 0
-                    mask_id_arr = 0
-                    vaccinated_id_arr = 0
-                    ModelContagionArr = 0
-                    ModelRunsOutput = 0
-                    SocialContactMatrices1 = 0
-                    SocialContactMatrices1DF = 0
-                    SummaryStatistics = 0
-                    AgentDataArrayDaily = 0
-                    GC.gc()
                 end
             end
             SocialNetworkIndex += 1
-
-            # Forced Garbage Collection
-            EpidemicDF = 0
-            GC.gc()
         end
     end
 end

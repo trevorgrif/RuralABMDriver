@@ -52,7 +52,7 @@ function _create_tables()
     append!(query_list, ["CREATE OR REPLACE TABLE MaskVaxDim (MaskVaxID USMALLINT PRIMARY KEY, MaskPortion UTINYINT, VaxPortion UTINYINT)"])
     append!(query_list, ["CREATE OR REPLACE TABLE AgentLoad (BehaviorID UINTEGER, AgentID INT, AgentHouseholdID INT, IsMasking INT, IsVaxed INT, PRIMARY KEY (BehaviorID, AgentID))"])
     append!(query_list, ["CREATE OR REPLACE TABLE EpidemicDim (EpidemicID UINTEGER PRIMARY KEY, BehaviorID UINTEGER, InfectedTotal USMALLINT, InfectedMax USMALLINT, PeakDay USMALLINT, RecoveredTotal USMALLINT, RecoveredMasked USMALLINT, RecoveredVaccinated USMALLINT, RecoveredMaskAndVax USMALLINT)"])
-    append!(query_list, ["CREATE OR REPLACE TABLE EpidemicSCMLoad (EpidemicID UINTEGER PRIMARY KEY, SCM STRING)"])
+    append!(query_list, ["CREATE OR REPLACE TABLE EpidemicSCMLoad (EpidemicID UINTEGER, Agent1 INT, Agent2 INT, Weight INT, PRIMARY KEY (EpidemicID, Agent1, Agent2))"])
     append!(query_list, ["CREATE OR REPLACE TABLE TransmissionLoad (EpidemicID UINTEGER, AgentID USMALLINT, InfectedBy USMALLINT, InfectionTimeHour UINTEGER)"])
     append!(query_list, ["CREATE OR REPLACE TABLE EpidemicLoad (EpidemicID UINTEGER, Day USMALLINT, Symptomatic USMALLINT, Recovered USMALLINT, PopulationLiving USMALLINT, PRIMARY KEY (EpidemicID, Day))"])
 
