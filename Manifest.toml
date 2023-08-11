@@ -2,7 +2,7 @@
 
 julia_version = "1.9.2"
 manifest_format = "2.0"
-project_hash = "950b54dda4e7e4f70652c1f7aed8e5d3859a890b"
+project_hash = "0c31eadc1c7a5967f2013b9be3b9c447f5354c15"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -26,15 +26,17 @@ weakdeps = ["StaticArrays"]
 
 [[deps.Agents]]
 deps = ["CSV", "CommonSolve", "DataFrames", "DataStructures", "Distributed", "Distributions", "Downloads", "Graphs", "JLD2", "LazyArtifacts", "LightOSM", "LinearAlgebra", "Pkg", "ProgressMeter", "Random", "Rotations", "Scratch", "StaticArrays", "StatsBase"]
-git-tree-sha1 = "30c271faac313b522f1d4d66460cfd17e7d9dfc5"
+git-tree-sha1 = "adb98dc3c06912eb2af18ba80365b9a8a61806c5"
 uuid = "46ada45e-f475-11e8-01d0-f70cc89e6671"
-version = "5.15.3"
+version = "5.17.1"
 
     [deps.Agents.extensions]
+    AgentsArrow = "Arrow"
     AgentsOSMVisualizations = "OSMMakie"
     AgentsVisualizations = "Makie"
 
     [deps.Agents.weakdeps]
+    Arrow = "69666777-d1a9-59fb-9406-91d4454c9d45"
     Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
     OSMMakie = "76b6901f-8821-46bb-9129-841bc9cfe677"
 
@@ -1132,6 +1134,12 @@ version = "2.2.4"
 [[deps.Printf]]
 deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+
+[[deps.ProgressBars]]
+deps = ["Printf"]
+git-tree-sha1 = "9d84c8646109eb8bc7a006d59b157c64d5155c81"
+uuid = "49802e3a-d2f1-5c88-81d8-b72133a6f568"
+version = "1.5.0"
 
 [[deps.ProgressMeter]]
 deps = ["Distributed", "Printf"]

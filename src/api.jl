@@ -13,20 +13,19 @@ Run the RuralABM package with default parameters.
 - `OUTPUT_TOWN_INDEX=1`: Index value appended to the town name in the output file directory.
 - `OUTPUT_DIR="../output": Default output directory location.
 """
-function run_ruralABM(connection;
+function run_ruralABM(;
     SOCIAL_NETWORKS = 10,
     NETWORK_LENGTH = 30,
     MASKING_LEVELS = 5,
     VACCINATION_LEVELS = 5,
     DISTRIBUTION_TYPE = [0, 0],
     MODEL_RUNS = 100,
-    TOWN_NAMES = ["small"],
+    TOWN_NAMES = "small",
     STORE_NETWORK_SCM = true,
     STORE_EPIDEMIC_SCM = true
     )
 
     _run_ruralABM(
-        connection,
         SOCIAL_NETWORKS = SOCIAL_NETWORKS,
         NETWORK_LENGTH = NETWORK_LENGTH,
         MASKING_LEVELS = MASKING_LEVELS,
@@ -51,6 +50,7 @@ end
 macro query(query)
     connection = _create_default_connection()
     result = run_query(query, connection) |> DataFrame
+    disconnect_from_database!(connection)
     return result
 end
 
