@@ -3,8 +3,18 @@
 
 Run a query on the database.
 """
-function _run_query(query; connection = _create_default_connection())
-    DBInterface.execute(connection, query)
+function _run_query(query; connection = 0)
+ 
+    connection == 0 ? (
+        connection = _create_default_connection();
+        result = DBInterface.execute(connection, query) |> DataFrame;
+        GC.gc();
+        DBInterface.close(connection);
+    ) : (
+        result = DBInterface.execute(connection, query) |> DataFrame;
+    )
+    
+    return result
 end
 
 """
@@ -15,9 +25,10 @@ Create a DBInterface connection to a databse.
 # kwargs
 - `database`: The path to the database file.
 """
-function _create_default_connection(;database = "data/GDWLND.duckdb")
+function _create_default_connection(;database = "data\\GDWLND.duckdb")
     isdir(dirname(database)) || mkdir(dirname(database))
-    return DBInterface.connect(DuckDB.DB, database)
+    con = DBInterface.connect(DuckDB.DB, database)
+    return con
 end
 
 ######################################
@@ -147,21 +158,26 @@ function _import_small_town_population()
         SELECT nextval('PopulationDimSequence') AS PopulationID, 'A small town of 386 residents' AS Description
         RETURNING PopulationID
     """
-    Result = _run_query(query) |> DataFrame
+    Result = _run_query(query)
     PopulationID = Result[1, 1]
 
     # Add Population data to PopulationDim
     connection = _create_default_connection()
-    DuckDB.register_data_frame(connection, population, "population")
-    query = """
-        INSERT INTO PopulationLoad 
-        SELECT $PopulationID, * 
-        FROM population 
-        WHERE HouseID <> 'NA'
-    """
-    _run_query(query, connection = connection)
-    _run_query("DROP VIEW population", connection = connection)
+    appender = DuckDB.Appender(connection, "PopulationLoad")
+
+    for row in eachrow(population)
+        row[2] == "NA" && continue
+        DuckDB.append(appender, PopulationID)
+        DuckDB.append(appender, row[1])
+        DuckDB.append(appender, row[2])
+        DuckDB.append(appender, row[3])
+        DuckDB.append(appender, row[4])
+        DuckDB.append(appender, row[5])
+        DuckDB.end_row(appender)
+    end
+    DuckDB.close(appender)
     DuckDB.close(connection)
+    GC.gc()
 end
 
 function _import_large_town_population()
@@ -192,16 +208,21 @@ function _import_large_town_population()
 
     # Add Population data to PopulationDim
     connection = _create_default_connection()
-    DuckDB.register_data_frame(connection, population, "population")
-    query = """
-        INSERT INTO PopulationLoad 
-        SELECT $PopulationID, * 
-        FROM population 
-        WHERE HouseID <> 'NA'
-    """
-    _run_query(query, connection = connection)
-    _run_query("DROP VIEW population", connection = connection)
+    appender = DuckDB.Appender(connection, "PopulationLoad")
+
+    for row in eachrow(population)
+        row[2] == "NA" && continue
+        DuckDB.append(appender, PopulationID)
+        DuckDB.append(appender, row[1])
+        DuckDB.append(appender, row[2])
+        DuckDB.append(appender, row[3])
+        DuckDB.append(appender, row[4])
+        DuckDB.append(appender, row[5])
+        DuckDB.end_row(appender)
+    end
+    DuckDB.close(appender)
     DuckDB.close(connection)
+    GC.gc()
 end
 
 function _drop_parquet_files()

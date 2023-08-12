@@ -43,14 +43,12 @@ end
 
 Run a query on the database.
 """
-function run_query(query, connection)
-    _run_query(query, connection = connection)
+function run_query(query)
+    _run_query(query)
 end
 
 macro query(query)
-    connection = _create_default_connection()
-    result = run_query(query, connection) |> DataFrame
-    disconnect_from_database!(connection)
+    result = _run_query(query)
     return result
 end
 
@@ -156,4 +154,5 @@ end
 
 function disconnect_from_database!(connection)
     DuckDB.close_database(connection)
+    GC.gc()
 end
