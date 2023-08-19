@@ -39,7 +39,53 @@ function _run_ruralABM(;
 
     # Run simulations in parallel
     _begin_simulations_faster(SOCIAL_NETWORKS, MASKING_LEVELS, VACCINATION_LEVELS, DISTRIBUTION_TYPE, MODEL_RUNS, NETWORK_LENGTH, TOWN_NAMES, STORE_NETWORK_SCM, STORE_EPIDEMIC_SCM)
+
+    # Vacuum database
+    _vacuum_database()
+
+end
+
+function _vacuum_database()
+    connection = _create_default_connection(database="data\\vacuumed.db")
+
+    _run_query("ATTACH 'data\\GDWLND.duckdb' as source (READ_ONLY);", connection = connection)
+    
+    _run_query("CREATE TABLE PopulationDim AS SELECT * from source.main.PopulationDim;", connection = connection)
+    _run_query("CREATE TABLE PopulationLoad AS SELECT * from source.main.PopulationLoad;", connection = connection)
+    _run_query("CREATE TABLE TownDim AS SELECT * from source.main.TownDim;", connection = connection)
+    _run_query("CREATE TABLE BusinessLoad AS SELECT * from source.main.BusinessLoad;", connection = connection)
+    _run_query("CREATE TABLE HouseholdLoad AS SELECT * from source.main.HouseholdLoad;", connection = connection)
+    _run_query("CREATE TABLE NetworkDim AS SELECT * from source.main.NetworkDim;", connection = connection)
+    _run_query("CREATE TABLE NetworkSCMLoad AS SELECT * from source.main.NetworkSCMLoad;", connection = connection)
+    _run_query("CREATE TABLE BehaviorDim AS SELECT * from source.main.BehaviorDim;", connection = connection)
+    _run_query("CREATE TABLE MaskVaxDim AS SELECT * from source.main.MaskVaxDim;", connection = connection)
+    _run_query("CREATE TABLE AgentLoad AS SELECT * from source.main.AgentLoad;", connection = connection)
+    _run_query("CREATE TABLE EpidemicDim AS SELECT * from source.main.EpidemicDim;", connection = connection)
+    _run_query("CREATE TABLE EpidemicLoad AS SELECT * from source.main.EpidemicLoad;", connection = connection)
+    _run_query("CREATE TABLE EpidemicSCMLoad AS SELECT * from source.main.EpidemicSCMLoad;", connection = connection)
+    _run_query("CREATE TABLE TransmissionLoad AS SELECT * from source.main.TransmissionLoad;", connection = connection)
+
+    val = _run_query("SELECT nextval('source.main.PopulationDimSequence')", connection = connection)[1,1]
+    _run_query("CREATE SEQUENCE PopulationDimSequence START $val", connection = connection)
+    val = _run_query("SELECT nextval('source.main.TownDimSequence')", connection = connection)[1,1]
+    _run_query("CREATE SEQUENCE TownDimSequence START $val", connection = connection)
+    val = _run_query("SELECT nextval('source.main.BusinessTypeDimSequence')", connection = connection)[1,1]
+    _run_query("CREATE SEQUENCE BusinessTypeDimSequence START $val", connection = connection)
+    val = _run_query("SELECT nextval('source.main.NetworkDimSequence')", connection = connection)[1,1]
+    _run_query("CREATE SEQUENCE NetworkDimSequence START $val", connection = connection)
+    val = _run_query("SELECT nextval('source.main.BehaviorDimSequence')", connection = connection)[1,1]
+    _run_query("CREATE SEQUENCE BehaviorDimSequence START $val", connection = connection)
+    val = _run_query("SELECT nextval('source.main.MaskVaxDimSequence')", connection = connection)[1,1]
+    _run_query("CREATE SEQUENCE MaskVaxDimSequence START $val", connection = connection)
+    val = _run_query("SELECT nextval('source.main.EpidemicDimSequence')", connection = connection)[1,1]
+    _run_query("CREATE SEQUENCE EpidemicDimSequence START $val", connection = connection)
+
+    _run_query("DETACH source;", connection = connection)
+    
+    DBInterface.close(connection)
     GC.gc()
+
+    mv("data\\vacuumed.db", "data\\GDWLND.duckdb", force=true)
 end
 
 """
@@ -312,7 +358,6 @@ function _begin_simulations_faster(town_networks::Int, mask_levels::Int, vaccine
     global seededModels = RemoteChannel(()->Channel(mask_levels*vaccine_levels*town_networks*runs)); # Input for Run_Model!
     global epidemicLevelDataChannel = RemoteChannel(()->Channel(mask_levels*vaccine_levels*town_networks*runs));
 
-
     # On a separate thread begin the Writer() which handles all writes to the db
     Threads.@spawn _dbWriterTask(STORE_NETWORK_SCM, STORE_EPIDEMIC_SCM)
 
@@ -378,15 +423,12 @@ function _dbWriterTask(STORE_NETWORK_SCM, STORE_EPIDEMIC_SCM)
         # println("Behavior: $(fetch(behaviorLevelWritesChannel))")
         # println("Epidemic: $(fetch(epidemicLevelWritesChannel))")
 
-
-        tasks = []
-        isready(townLevelJobsChannel) && push!(tasks, Threads.@spawn _append_town_structure(connection))
-        isready(networkLevelDataChannel) && push!(tasks, Threads.@spawn _append_network_level_data(connection, STORE_NETWORK_SCM))
-        isready(behaviorLevelDataChannel) && push!(tasks, Threads.@spawn _append_behavior_level_data(connection))
-        isready(epidemicLevelDataChannel) && push!(tasks, Threads.@spawn _append_epidemic_level_data(connection, STORE_EPIDEMIC_SCM))
-        foreach(wait, tasks)
+        isready(townLevelJobsChannel) && _append_town_structure(connection)
+        isready(networkLevelDataChannel) && _append_network_level_data(connection, STORE_NETWORK_SCM)
+        isready(behaviorLevelDataChannel) && _append_behavior_level_data(connection)
+        isready(epidemicLevelDataChannel) && _append_epidemic_level_data(connection, STORE_EPIDEMIC_SCM)
     end
-    DuckDB.close(connection)
+    DBInterface.close(connection)
     GC.gc()
 end
 
@@ -511,6 +553,7 @@ function _append_epidemic_level_data(connection, STORE_EPIDEMIC_SCM)
 end
 
 function _append_behavior_level_data(connection)
+
     model = take!(behaviorLevelDataChannel)
     query = """SELECT nextval('BehaviorDimSequence')"""
     behaviorId = _run_query(query, connection = connection) 

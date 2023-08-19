@@ -176,7 +176,7 @@ function _import_small_town_population()
         DuckDB.end_row(appender)
     end
     DuckDB.close(appender)
-    DuckDB.close(connection)
+    DBInterface.close(connection)
     GC.gc()
 end
 
@@ -221,7 +221,7 @@ function _import_large_town_population()
         DuckDB.end_row(appender)
     end
     DuckDB.close(appender)
-    DuckDB.close(connection)
+    DBInterface.close(connection)
     GC.gc()
 end
 
@@ -237,7 +237,4 @@ function _export_database(filepath, connection)
     _run_query("EXPORT DATABASE '$(filepath)' (FORMAT PARQUET)", connection = connection)
 end
 
-# support for running multiple queries without closing and opening the connection
-
-# Delete directory
 
