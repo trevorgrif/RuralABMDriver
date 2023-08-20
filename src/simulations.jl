@@ -38,6 +38,7 @@ function _run_ruralABM(;
     # @assert _verify_database_structure() "database structure is not valid"
 
     # Run simulations in parallel
+    GC.gc()
     _begin_simulations_faster(SOCIAL_NETWORKS, MASKING_LEVELS, VACCINATION_LEVELS, DISTRIBUTION_TYPE, MODEL_RUNS, NETWORK_LENGTH, TOWN_NAMES, STORE_NETWORK_SCM, STORE_EPIDEMIC_SCM)
 
     # Vacuum database
@@ -46,9 +47,9 @@ function _run_ruralABM(;
 end
 
 function _vacuum_database()
-    connection = _create_default_connection(database="data\\vacuumed.db")
+    connection = _create_default_connection(database="data/vacuumed.db")
 
-    _run_query("ATTACH 'data\\GDWLND.duckdb' as source (READ_ONLY);", connection = connection)
+    _run_query("ATTACH 'data/GDWLND.duckdb' as source (READ_ONLY);", connection = connection)
     
     _run_query("CREATE TABLE PopulationDim AS SELECT * from source.main.PopulationDim;", connection = connection)
     _run_query("CREATE TABLE PopulationLoad AS SELECT * from source.main.PopulationLoad;", connection = connection)
@@ -85,7 +86,7 @@ function _vacuum_database()
     DBInterface.close(connection)
     GC.gc()
 
-    mv("data\\vacuumed.db", "data\\GDWLND.duckdb", force=true)
+    mv("data/vacuumed.db", "data/GDWLND.duckdb", force=true)
 end
 
 """
@@ -357,7 +358,7 @@ function _begin_simulations_faster(town_networks::Int, mask_levels::Int, vaccine
     
     global seededModels = RemoteChannel(()->Channel(mask_levels*vaccine_levels*town_networks*runs)); # Input for Run_Model!
     global epidemicLevelDataChannel = RemoteChannel(()->Channel(mask_levels*vaccine_levels*town_networks*runs));
-
+    @debug "All channels created"
     # On a separate thread begin the Writer() which handles all writes to the db
     Threads.@spawn _dbWriterTask(STORE_NETWORK_SCM, STORE_EPIDEMIC_SCM)
 
@@ -371,6 +372,7 @@ function _begin_simulations_faster(town_networks::Int, mask_levels::Int, vaccine
     end
 
     # Generate the initial model object
+    @debug "Constructing Town"
     model_raw , townDataSummaryDF, businessStructureDF, houseStructureDF = Construct_Town("lib/RuralABM/data/example_towns/$(town)_town/population.csv", "lib/RuralABM/data/example_towns/$(town)_town/businesses.csv")
     model_raw.population_id = PopulationID
     model_raw.mask_distribution_type = MaskDistributionType
@@ -378,6 +380,7 @@ function _begin_simulations_faster(town_networks::Int, mask_levels::Int, vaccine
     model_raw.network_construction_length = duration_days_network
     
     # Store TownDim Level
+    @debug "Feeding Town Structure"
     Threads.@spawn _feed_town_structure_channel(model_raw)
     Threads.@spawn _populate_raw_model_channel(town_networks)     
 
@@ -420,8 +423,8 @@ function _dbWriterTask(STORE_NETWORK_SCM, STORE_EPIDEMIC_SCM)
         # sleep(0.01) #temporarily unlock jobsExists
         # set_multiline_postfix(progressBar, "Town Level Jobs Remaining: $(fetch(townLevelWritesChannel))\nNetwork Level Jobs Remaining: $(fetch(networkLevelWritesChannel))\nBehavior Level Jobs Remaining: $(fetch(behaviorLevelWritesChannel))\nEpidemic Level Jobs Remaining: $(fetch(epidemicLevelWritesChannel))")
 
-        # println("Behavior: $(fetch(behaviorLevelWritesChannel))")
-        # println("Epidemic: $(fetch(epidemicLevelWritesChannel))")
+        @debug "Behavior: $(fetch(behaviorLevelWritesChannel))"
+        @debug "Epidemic: $(fetch(epidemicLevelWritesChannel))"
 
         isready(townLevelJobsChannel) && _append_town_structure(connection)
         isready(networkLevelDataChannel) && _append_network_level_data(connection, STORE_NETWORK_SCM)

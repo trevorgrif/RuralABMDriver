@@ -25,7 +25,7 @@ Create a DBInterface connection to a databse.
 # kwargs
 - `database`: The path to the database file.
 """
-function _create_default_connection(;database = "data\\GDWLND.duckdb")
+function _create_default_connection(;database = "data/GDWLND.duckdb")
     isdir(dirname(database)) || mkdir(dirname(database))
     con = DBInterface.connect(DuckDB.DB, database)
     return con
