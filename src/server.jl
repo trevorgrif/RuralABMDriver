@@ -3,18 +3,13 @@
 
 Run a query on the database.
 """
-function _run_query(query; connection = 0)
+function _run_query(query, connection)
  
-    connection == 0 ? (
-        connection = _create_default_connection();
-        result = DBInterface.execute(connection, query) |> DataFrame;
-        GC.gc();
-        DBInterface.close(connection);
-    ) : (
-        result = DBInterface.execute(connection, query) |> DataFrame;
-    )
-    
-    return result
+    statement = DBInterface.prepare(connection, query)
+    results = DBInterface.execute(statement) |> DataFrame
+    DBInterface.close!(statement)
+
+    return results
 end
 
 """
@@ -25,10 +20,9 @@ Create a DBInterface connection to a databse.
 # kwargs
 - `database`: The path to the database file.
 """
-function _create_default_connection(;database = "data/GDWLND.duckdb")
+function _create_default_connection(;database = joinpath("data", "GDWLND.duckdb"))
     isdir(dirname(database)) || mkdir(dirname(database))
-    con = DBInterface.connect(DuckDB.DB, database)
-    return con
+    return DBInterface.connect(DuckDB.DB, database)
 end
 
 ######################################
@@ -36,20 +30,28 @@ end
 ######################################
 
 function _create_database_structure()
+    connection = _create_default_connection()
+
     # Create the database structure
-    _create_tables()
-    _create_sequences()
-    _import_population_data()
+    _create_tables(connection)
+    _create_sequences(connection)
+    _import_population_data(connection)
+
+    DBInterface.close(connection)
 end
 
 function _drop_database_structure()
+    connection = _create_default_connection()
+
     # Drop the database structure
-    _drop_tables()
-    _drop_sequences()
+    _drop_tables(connection)
+    _drop_sequences(connection)
     _drop_parquet_files()
+
+    DBInterface.close(connection)
 end
 
-function _create_tables()
+function _create_tables(connection)
     query_list = []
     append!(query_list, ["CREATE OR REPLACE TABLE PopulationDim (PopulationID USMALLINT PRIMARY KEY, Description VARCHAR)"])
     append!(query_list, ["CREATE OR REPLACE TABLE PopulationLoad (PopulationID USMALLINT, AgentID INT, HouseID INT, AgeRangeID VARCHAR, Sex VARCHAR, IncomeRange VARCHAR, PRIMARY KEY (PopulationID, AgentID))"])
@@ -68,11 +70,11 @@ function _create_tables()
     append!(query_list, ["CREATE OR REPLACE TABLE EpidemicLoad (EpidemicID UINTEGER, Day USMALLINT, Symptomatic USMALLINT, Recovered USMALLINT, PopulationLiving USMALLINT, PRIMARY KEY (EpidemicID, Day))"])
 
     for query in query_list
-        _run_query(query)
+        _run_query(query, connection)
     end
 end
 
-function _drop_tables()
+function _drop_tables(connection)
     query_list = []
     append!(query_list, ["DROP TABLE IF EXISTS PopulationDim"])
     append!(query_list, ["DROP TABLE IF EXISTS PopulationLoad"])
@@ -91,11 +93,11 @@ function _drop_tables()
     append!(query_list, ["DROP TABLE IF EXISTS EpidemicSCMLoad"])
 
     for query in query_list
-        _run_query(query)
+        _run_query(query, connection)
     end
 end
 
-function _create_sequences()
+function _create_sequences(connection)
     query_list = []
     append!(query_list, ["CREATE SEQUENCE PopulationDimSequence START 1"])
     append!(query_list, ["CREATE SEQUENCE TownDimSequence START 1"])
@@ -106,11 +108,11 @@ function _create_sequences()
     append!(query_list, ["CREATE SEQUENCE EpidemicDimSequence START 1"])
 
     for query in query_list
-        _run_query(query)
+        _run_query(query, connection)
     end
 end
 
-function _drop_sequences()
+function _drop_sequences(connection)
     query_list = []
     append!(query_list, ["DROP SEQUENCE IF EXISTS PopulationDimSequence"])
     append!(query_list, ["DROP SEQUENCE IF EXISTS TownDimSequence"])
@@ -121,7 +123,7 @@ function _drop_sequences()
     append!(query_list, ["DROP SEQUENCE IF EXISTS EpidemicDimSequence"])
 
     for query in query_list
-        _run_query(query)
+        _run_query(query, connection)
     end
 end
 
@@ -130,19 +132,19 @@ function _verify_database_structure()
     return true
 end
 
-function _import_population_data()
-    _import_small_town_population()
-    _import_large_town_population()
+function _import_population_data(connection)
+    _import_small_town_population(connection)
+    _import_large_town_population(connection)
 end
 
-function _import_small_town_population()
-    if !isdir("lib/RuralABM/data/example_towns/small_town") 
+function _import_small_town_population(connection)
+    if !isdir(joinpath("lib","RuralABM","data","example_towns","small_town")) 
         @warn "The small town data directory does not exist"
         return
     end
 
     # Load Data
-    population = DataFrame(CSV.File("lib/RuralABM/data/example_towns/small_town/population.csv"))
+    population = DataFrame(CSV.File(joinpath("lib","RuralABM","data","example_towns","small_town","population.csv")))
 
     # Formate Data
     select!(population, Not([:Ind]))
@@ -158,11 +160,10 @@ function _import_small_town_population()
         SELECT nextval('PopulationDimSequence') AS PopulationID, 'A small town of 386 residents' AS Description
         RETURNING PopulationID
     """
-    Result = _run_query(query)
+    Result = _run_query(query, connection)
     PopulationID = Result[1, 1]
 
     # Add Population data to PopulationDim
-    connection = _create_default_connection()
     appender = DuckDB.Appender(connection, "PopulationLoad")
 
     for row in eachrow(population)
@@ -176,18 +177,16 @@ function _import_small_town_population()
         DuckDB.end_row(appender)
     end
     DuckDB.close(appender)
-    DBInterface.close(connection)
-    GC.gc()
 end
 
-function _import_large_town_population()
-    if !isdir("lib/RuralABM/data/example_towns/large_town") 
+function _import_large_town_population(connection)
+    if !isdir(joinpath("lib","RuralABM","data","example_towns","large_town")) 
         @warn "The large town data directory does not exist"
         return
     end
 
     # Load Data
-    population = DataFrame(CSV.File("lib/RuralABM/data/example_towns/large_town/population.csv"))
+    population = DataFrame(CSV.File(joinpath("lib","RuralABM","data","example_towns","large_town","population.csv")))
 
     # Formate Data
     select!(population, Not([:Ind]))
@@ -203,11 +202,10 @@ function _import_large_town_population()
         SELECT nextval('PopulationDimSequence') AS PopulationID, 'A large town of 5129 residents' AS Description
         RETURNING PopulationID
     """
-    Result = _run_query(query) |> DataFrame
+    Result = _run_query(query, connection) |> DataFrame
     PopulationID = Result[1, 1]
 
     # Add Population data to PopulationDim
-    connection = _create_default_connection()
     appender = DuckDB.Appender(connection, "PopulationLoad")
 
     for row in eachrow(population)
@@ -221,20 +219,18 @@ function _import_large_town_population()
         DuckDB.end_row(appender)
     end
     DuckDB.close(appender)
-    DBInterface.close(connection)
-    GC.gc()
 end
 
 function _drop_parquet_files()
     try
-        rm("data/EpidemicSCMLoad", recursive = true)
+        rm(joinpath("data","EpidemicSCMLoad"), recursive = true)
     catch
         @warn "EpidemicSCMLoad parquet file does not exist"
     end
 end
 
 function _export_database(filepath, connection)
-    _run_query("EXPORT DATABASE '$(filepath)' (FORMAT PARQUET)", connection = connection)
+    _run_query("EXPORT DATABASE '$(filepath)' (FORMAT PARQUET)", connection)
 end
 
 
