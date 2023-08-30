@@ -376,13 +376,13 @@ function _dbWriterTask(jobs, STORE_NETWORK_SCM, STORE_EPIDEMIC_SCM)
         model, task = take!(writesChannel)
 
         if task == "Town Level"
-            @async _append_town_structure(connection, model)
+            _append_town_structure(connection, model)
         elseif task == "Network Level"
-            @async _append_network_level_data(connection, model, STORE_NETWORK_SCM)
+            _append_network_level_data(connection, model, STORE_NETWORK_SCM)
         elseif task == "Behavior Level"
-            @async _append_behavior_level_data(connection, model)
+            _append_behavior_level_data(connection, model)
         elseif task == "Epidemic Level"
-            @async _append_epidemic_level_data(connection, model, STORE_EPIDEMIC_SCM)
+            _append_epidemic_level_data(connection, model, STORE_EPIDEMIC_SCM)
         end
         println("Jobs Complete: $i/$jobs")
     end
