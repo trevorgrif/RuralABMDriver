@@ -324,11 +324,12 @@ function _begin_simulations_faster(town_networks::Int, mask_levels::Int, vaccine
     global townLevelJobsChannel = Channel(1)
     
     # Prepare pipeline layers
-    global jobsChannel = RemoteChannel(()->Channel(mask_levels*vaccine_levels*town_networks*runs))
-    global writesChannel = RemoteChannel(()->Channel(mask_levels*vaccine_levels*town_networks*runs))
+    numberWorkers = length(workers())
+    global jobsChannel = RemoteChannel(()->Channel(2*numberWorkers))
+    global writesChannel = RemoteChannel(()->Channel(2*numberWorkers))
     global populationModels = RemoteChannel(()->Channel(1)); 
-    global stableModels = RemoteChannel(()->Channel(32));
-    global behavedModels = RemoteChannel(()->Channel(mask_levels*vaccine_levels*town_networks));
+    global stableModels = RemoteChannel(()->Channel(2*numberWorkers));
+    global behavedModels = RemoteChannel(()->Channel(2*numberWorkers));
 
     println("All channels created")
 
@@ -384,23 +385,23 @@ function _dbWriterTask(jobs, STORE_NETWORK_SCM, STORE_EPIDEMIC_SCM)
         elseif task == "Epidemic Level"
             _append_epidemic_level_data(connection, model, STORE_EPIDEMIC_SCM)
         end
-        println("Jobs Complete: $i/$jobs")
+        # println("Jobs Complete: $i/$jobs")
     end
 
     DBInterface.close(connection)
 end
 
 function _feed_town_structure_channel(model)
-    put!(townLevelJobsChannel, deepcopy(model))
+    put!(townLevelJobsChannel, model)
 end
 
 function _populate_seeded_models(runs, mask_levels, vaccine_levels, networks)
     for _ in 1:(mask_levels * vaccine_levels * networks)
         behavedModel = take!(behavedModels)
         for _ in 1:runs
-            model = deepcopy(behavedModel)
-            Seed_Contagion!(model)
-            put!(jobsChannel, (deepcopy(model), "Run Epidemic"))
+            Seed_Contagion!(behavedModel)
+            put!(jobsChannel, (behavedModel, "Run Epidemic"))
+            Heal_Model!(behavedModel)
         end
     end
 end
@@ -414,10 +415,9 @@ function _populate_unbehaved_models(mask_levels, vaccine_levels, networks)
         stableModel = take!(stableModels)
         for mask_lvl in 0:(mask_levels-1)
             for vacc_lvl in 0:(vaccine_levels-1)
-                model = deepcopy(stableModel)
-                model.mask_portion = mask_lvl*mask_incr
-                model.vax_portion = vacc_lvl*vacc_incr
-                put!(jobsChannel, (deepcopy(model), "Apply Behavior"))
+                stableModel.mask_portion = mask_lvl*mask_incr
+                stableModel.vax_portion = vacc_lvl*vacc_incr
+                put!(jobsChannel, (stableModel, "Apply Behavior"))
             end
         end
     end
@@ -427,7 +427,7 @@ end
 function _populate_raw_model_channel(networks)
     model = take!(populationModels)
     for _ in 1:networks
-        put!(jobsChannel, (deepcopy(model), "Build Network"))
+        put!(jobsChannel, (model, "Build Network"))
     end
 end
 
@@ -502,7 +502,7 @@ function _append_behavior_level_data(connection, model)
     behaviorId = _run_query(query, connection) 
     behaviorId = behaviorId[1,1]
     model.behavior_id = behaviorId
-    put!(behavedModels, deepcopy(model))
+    put!(behavedModels, model)
     
 
     # Check MaskAndVaxDim
@@ -555,7 +555,7 @@ function _append_town_structure(connection, model)
     townId = _run_query(query, connection) 
     townId = townId[1,1]
     model.town_id = townId
-    put!(populationModels, deepcopy(model))
+    put!(populationModels, model)
 
     # Populate TownDim
     appender = DuckDB.Appender(connection, "TownDim")
@@ -606,7 +606,7 @@ function _append_network_level_data(connection, model, STORE_NETWORK_SCM)
     networkId = _run_query(query, connection) 
     networkId = networkId[1,1]
     model.network_id = networkId
-    put!(stableModels, deepcopy(model))    
+    put!(stableModels, model)    
     
     # Append NetworkDim data
     appender = DuckDB.Appender(connection, "NetworkDim")
