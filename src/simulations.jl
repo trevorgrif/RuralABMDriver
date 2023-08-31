@@ -407,16 +407,16 @@ end
 
 function _populate_unbehaved_models(mask_levels, vaccine_levels, networks)
     # Compute target levels for masks and vaccines
-    mask_levels == 1 ? (mask_incr = 101) : (mask_incr = floor(100/(mask_levels-1)))
-    vaccine_levels == 1 ? (vacc_incr = 101) : (vacc_incr = floor(100/(vaccine_levels-1)))
+    mask_incr = floor(100/(mask_levels))
+    vacc_incr = floor(100/(vaccine_levels))
 
     for _ in 1:networks
         stableModel = take!(stableModels)
-        for mask_lvl in 0:mask_incr:100
-            for vacc_lvl in 0:vacc_incr:100
+        for mask_lvl in 0:(mask_levels-1)
+            for vacc_lvl in 0:(vaccine_levels-1)
                 model = deepcopy(stableModel)
-                model.mask_portion = mask_lvl
-                model.vax_portion = vacc_lvl
+                model.mask_portion = mask_lvl*mask_incr
+                model.vax_portion = vacc_lvl*vacc_incr
                 put!(jobsChannel, (deepcopy(model), "Apply Behavior"))
             end
         end
