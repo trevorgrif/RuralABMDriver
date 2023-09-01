@@ -385,7 +385,7 @@ function _dbWriterTask(jobs, STORE_NETWORK_SCM, STORE_EPIDEMIC_SCM)
         elseif task == "Epidemic Level"
             _append_epidemic_level_data(connection, model, STORE_EPIDEMIC_SCM)
         end
-        # println("Jobs Complete: $i/$jobs")
+        println("Jobs Complete: $i/$jobs")
     end
 
     DBInterface.close(connection)
