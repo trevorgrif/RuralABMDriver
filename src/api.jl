@@ -43,12 +43,12 @@ end
 
 Run a query on the database.
 """
-function run_query(query)
-    _run_query(query)
+function run_query(query, connection)
+    _run_query(query, connection)
 end
 
-macro query(query)
-    result = _run_query(query)
+macro query(query, connection)
+    result = _run_query(query, connection)
     return result
 end
 

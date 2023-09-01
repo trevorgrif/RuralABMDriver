@@ -368,6 +368,9 @@ function _begin_simulations_faster(town_networks::Int, mask_levels::Int, vaccine
 
     # Let dbWriterTask finish
     wait(writerTask)
+
+    # Kill wokrer processes
+    interrupt()
 end
 
 function _dbWriterTask(jobs, STORE_NETWORK_SCM, STORE_EPIDEMIC_SCM)
@@ -399,9 +402,7 @@ function _populate_seeded_models(runs, mask_levels, vaccine_levels, networks)
     for _ in 1:(mask_levels * vaccine_levels * networks)
         behavedModel = take!(behavedModels)
         for _ in 1:runs
-            Seed_Contagion!(behavedModel)
             put!(jobsChannel, (behavedModel, "Run Epidemic"))
-            Heal_Model!(behavedModel)
         end
     end
 end
@@ -415,9 +416,7 @@ function _populate_unbehaved_models(mask_levels, vaccine_levels, networks)
         stableModel = take!(stableModels)
         for mask_lvl in 0:(mask_levels-1)
             for vacc_lvl in 0:(vaccine_levels-1)
-                stableModel.mask_portion = mask_lvl*mask_incr
-                stableModel.vax_portion = vacc_lvl*vacc_incr
-                put!(jobsChannel, (stableModel, "Apply Behavior"))
+                put!(jobsChannel, (stableModel, "Apply Behavior $(mask_lvl*mask_incr) $(vacc_lvl*vacc_incr)"))
             end
         end
     end
@@ -479,7 +478,6 @@ function _append_epidemic_level_data(connection, model, STORE_EPIDEMIC_SCM)
     if STORE_EPIDEMIC_SCM
         socialContactVector = Get_Compact_Adjacency_Matrix(model)
         appender = DuckDB.Appender(connection, "EpidemicSCMLoad")
-        
         population = model.init_pop_size
         epidemicSCMItr = 1
         for agent1 in 1:population
@@ -620,7 +618,7 @@ function _append_network_level_data(connection, model, STORE_NETWORK_SCM)
     if STORE_NETWORK_SCM
         socialContactVector = Get_Compact_Adjacency_Matrix(model)
         appender = DuckDB.Appender(connection, "NetworkSCMLoad")
-        
+
         population = model.init_pop_size
         epidemicSCMItr = 1
         for agent1 in 1:population
