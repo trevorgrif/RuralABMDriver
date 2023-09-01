@@ -325,11 +325,11 @@ function _begin_simulations_faster(town_networks::Int, mask_levels::Int, vaccine
     
     # Prepare pipeline layers
     numberWorkers = length(workers())
-    global jobsChannel = RemoteChannel(()->Channel(2*numberWorkers))
-    global writesChannel = RemoteChannel(()->Channel(2*numberWorkers))
+    global jobsChannel = RemoteChannel(()->Channel(epidemicLevelWrites))
+    global writesChannel = RemoteChannel(()->Channel(epidemicLevelWrites))
     global populationModels = RemoteChannel(()->Channel(1)); 
-    global stableModels = RemoteChannel(()->Channel(2*numberWorkers));
-    global behavedModels = RemoteChannel(()->Channel(2*numberWorkers));
+    global stableModels = RemoteChannel(()->Channel(town_networks));
+    global behavedModels = RemoteChannel(()->Channel(behaviorLevelWrites));
 
     println("All channels created")
 
