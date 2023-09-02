@@ -62,7 +62,6 @@ function _vacuum_database()
     _run_query("CREATE TABLE NetworkDim AS SELECT * from source.main.NetworkDim;", connection)
     _run_query("CREATE TABLE NetworkSCMLoad AS SELECT * from source.main.NetworkSCMLoad;", connection)
     _run_query("CREATE TABLE BehaviorDim AS SELECT * from source.main.BehaviorDim;", connection)
-    _run_query("CREATE TABLE MaskVaxDim AS SELECT * from source.main.MaskVaxDim;", connection)
     _run_query("CREATE TABLE AgentLoad AS SELECT * from source.main.AgentLoad;", connection)
     _run_query("CREATE TABLE EpidemicDim AS SELECT * from source.main.EpidemicDim;", connection)
     _run_query("CREATE TABLE EpidemicLoad AS SELECT * from source.main.EpidemicLoad;", connection)
@@ -79,8 +78,6 @@ function _vacuum_database()
     _run_query("CREATE SEQUENCE NetworkDimSequence START $val", connection)
     val = _run_query("SELECT nextval('source.main.BehaviorDimSequence')", connection)[1,1]
     _run_query("CREATE SEQUENCE BehaviorDimSequence START $val", connection)
-    val = _run_query("SELECT nextval('source.main.MaskVaxDimSequence')", connection)[1,1]
-    _run_query("CREATE SEQUENCE MaskVaxDimSequence START $val", connection)
     val = _run_query("SELECT nextval('source.main.EpidemicDimSequence')", connection)[1,1]
     _run_query("CREATE SEQUENCE EpidemicDimSequence START $val", connection)
 
@@ -327,14 +324,21 @@ function _begin_simulations_faster(town_networks::Int, mask_levels::Int, vaccine
     numberWorkers = length(workers())
     global jobsChannel = RemoteChannel(()->Channel(epidemicLevelWrites))
     global writesChannel = RemoteChannel(()->Channel(epidemicLevelWrites))
+
     global populationModels = RemoteChannel(()->Channel(1)); 
     global stableModels = RemoteChannel(()->Channel(town_networks));
     global behavedModels = RemoteChannel(()->Channel(behaviorLevelWrites));
 
+    global townIdChannel = Channel(townLevelWrites)
+    global networkIdChannel = Channel(networkLevelWrites)
+    global behaviorIdChannel = Channel(behaviorLevelWrites)
+    global epidemicIdChannel = Channel(epidemicLevelWrites)
+
+
     println("All channels created")
 
     # On a separate thread begin the Writer() which handles all writes to the db
-    writerTask = Threads.@spawn _dbWriterTask((townLevelWrites + networkLevelWrites + behaviorLevelWrites + epidemicLevelWrites), STORE_NETWORK_SCM, STORE_EPIDEMIC_SCM)
+    writerTask = Threads.@spawn _dbWriterTask(townLevelWrites, networkLevelWrites, behaviorLevelWrites, epidemicLevelWrites, STORE_NETWORK_SCM, STORE_EPIDEMIC_SCM)
 
     # Run the raw models to establish a social network
     println("Spinning Up Workers")
@@ -373,23 +377,47 @@ function _begin_simulations_faster(town_networks::Int, mask_levels::Int, vaccine
     interrupt()
 end
 
-function _dbWriterTask(jobs, STORE_NETWORK_SCM, STORE_EPIDEMIC_SCM)
+function _dbWriterTask(townLevelWrites, networkLevelWrites, behaviorLevelWrites, epidemicLevelWrites, STORE_NETWORK_SCM, STORE_EPIDEMIC_SCM)
     connection = _create_default_connection()
-    
-    for i in 1:jobs
-        model, task = take!(writesChannel)
 
-        if task == "Town Level"
-            _append_town_structure(connection, model)
-        elseif task == "Network Level"
-            _append_network_level_data(connection, model, STORE_NETWORK_SCM)
-        elseif task == "Behavior Level"
-            _append_behavior_level_data(connection, model)
-        elseif task == "Epidemic Level"
-            _append_epidemic_level_data(connection, model, STORE_EPIDEMIC_SCM)
-        end
-        println("Jobs Complete: $i/$jobs")
+    # Insert Id data
+    query = """SELECT nextval('TownDimSequence')"""
+    for _ in 1:townLevelWrites
+       put!(townIdChannel, _run_query(query, connection)[1,1]) 
     end
+
+    query = """SELECT nextval('NetworkDimSequence')"""
+    for _ in 1:networkLevelWrites
+        put!(networkIdChannel, _run_query(query, connection)[1,1]) 
+    end
+
+    query = """SELECT nextval('BehaviorDimSequence')"""
+    for _ in 1:behaviorLevelWrites
+        put!(behaviorIdChannel, _run_query(query, connection)[1,1]) 
+    end
+
+    query = """SELECT nextval('EpidemicDimSequence')"""
+    for _ in 1:epidemicLevelWrites
+        put!(epidemicIdChannel, _run_query(query, connection)[1,1]) 
+    end
+    
+    jobs = townLevelWrites + networkLevelWrites + behaviorLevelWrites + epidemicLevelWrites
+    @sync begin
+        for i in 1:jobs
+            model, task = take!(writesChannel)
+    
+            if task == "Town Level"
+                Threads.@spawn _append_town_structure(connection, model)
+            elseif task == "Network Level"
+                Threads.@spawn _append_network_level_data(connection, model, STORE_NETWORK_SCM)
+            elseif task == "Behavior Level"
+                Threads.@spawn _append_behavior_level_data(connection, model)
+            elseif task == "Epidemic Level"
+                Threads.@spawn _append_epidemic_level_data(connection, model, STORE_EPIDEMIC_SCM)
+            end
+            println("Jobs Complete: $i/$jobs")
+        end
+    end 
 
     DBInterface.close(connection)
 end
@@ -416,7 +444,7 @@ function _populate_unbehaved_models(mask_levels, vaccine_levels, networks)
         stableModel = take!(stableModels)
         for mask_lvl in 0:(mask_levels-1)
             for vacc_lvl in 0:(vaccine_levels-1)
-                put!(jobsChannel, (stableModel, "Apply Behavior $(mask_lvl*mask_incr) $(vacc_lvl*vacc_incr)"))
+                put!(jobsChannel, (stableModel, "Apply Behavior $(Int(mask_lvl*mask_incr)) $(Int(vacc_lvl*vacc_incr))"))
             end
         end
     end
@@ -432,10 +460,7 @@ end
 
 function _append_epidemic_level_data(connection, model, STORE_EPIDEMIC_SCM)
 
-    query = """SELECT nextval('EpidemicDimSequence')"""
-    epidemicId = _run_query(query, connection) 
-    epidemicId = epidemicId[1,1]
-    model.epidemic_id = epidemicId
+    model.epidemic_id = take!(epidemicIdChannel)
 
     # Append EpidemicDim data
     appender = DuckDB.Appender(connection, "EpidemicDim")
@@ -496,41 +521,15 @@ end
 
 function _append_behavior_level_data(connection, model)
 
-    query = """SELECT nextval('BehaviorDimSequence')"""
-    behaviorId = _run_query(query, connection) 
-    behaviorId = behaviorId[1,1]
-    model.behavior_id = behaviorId
+    model.behavior_id = take!(behaviorIdChannel)
     put!(behavedModels, model)
-    
-
-    # Check MaskAndVaxDim
-    query = """
-    SELECT MaskVaxID FROM MaskVaxDim
-    WHERE MaskPortion = $(model.mask_portion)
-    AND VaxPortion = $(model.vax_portion)
-    """
-    result = _run_query(query, connection) 
-    if size(result)[1] == 0
-        # Using "INSERT" since this case happens so rarely
-        query = """ 
-        INSERT INTO MaskVaxDim
-        SELECT
-        nextval('MaskVaxDimSequence') AS MaskVaxID,
-        $(model.mask_portion),
-        $(model.vax_portion)
-        RETURNING MaskVaxID
-        """
-        result = _run_query(query, connection) 
-        maskVaxId = result[1,1]
-    else
-        maskVaxId = result[1,1]
-    end
     
     # Append to BehaviorDim
     appender = DuckDB.Appender(connection, "BehaviorDim")
     DuckDB.append(appender, model.behavior_id)
     DuckDB.append(appender, model.network_id)
-    DuckDB.append(appender, maskVaxId)
+    DuckDB.append(appender, model.mask_portion)
+    DuckDB.append(appender, model.vax_portion)
     DuckDB.end_row(appender)
     DuckDB.close(appender)
 
@@ -548,11 +547,7 @@ function _append_behavior_level_data(connection, model)
 end
 
 function _append_town_structure(connection, model)
-    # Insert Town Structure Data
-    query = """SELECT nextval('TownDimSequence')"""
-    townId = _run_query(query, connection) 
-    townId = townId[1,1]
-    model.town_id = townId
+    model.town_id = take!(townIdChannel)
     put!(populationModels, model)
 
     # Populate TownDim
@@ -576,7 +571,7 @@ function _append_town_structure(connection, model)
     # Populate BusinessLoad
     appender = DuckDB.Appender(connection, "BusinessLoad")
     for row in eachrow(model.business_structure_dataframe)
-        DuckDB.append(appender, townId)
+        DuckDB.append(appender, model.town_id)
         DuckDB.append(appender, row[1])
         DuckDB.append(appender, row[2])
         DuckDB.append(appender, row[3])
@@ -587,7 +582,7 @@ function _append_town_structure(connection, model)
     # Populate HouseholdLoad
     appender = DuckDB.Appender(connection, "HouseholdLoad")
     for row in eachrow(model.household_structure_dataframe)
-        DuckDB.append(appender, townId)
+        DuckDB.append(appender, model.town_id)
         DuckDB.append(appender, row[1])
         DuckDB.append(appender, row[2])
         DuckDB.append(appender, row[3])
@@ -598,12 +593,7 @@ function _append_town_structure(connection, model)
 end
 
 function _append_network_level_data(connection, model, STORE_NETWORK_SCM)
-    # model = take!(networkLevelDataChannel)
-
-    query = """SELECT nextval('NetworkDimSequence')"""
-    networkId = _run_query(query, connection) 
-    networkId = networkId[1,1]
-    model.network_id = networkId
+    model.network_id = take!(networkIdChannel)
     put!(stableModels, model)    
     
     # Append NetworkDim data
@@ -656,8 +646,6 @@ function _store_epidemic_scm(SocialContactMatrices1DF, epidemicID)
         end
         DuckDB.close(EpidemicSCMAppender)
     end
-
-    disconnect_from_database!(connection)
 end
 
 function _store_agent_load(model, behaviorID)
