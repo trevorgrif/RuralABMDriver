@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH -J ABM
-#SBATCH --mem=90G
+#SBATCH --mem=100G
 #SBATCH --cpus-per-task=32
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=EMAIL
