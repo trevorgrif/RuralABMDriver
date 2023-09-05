@@ -22,7 +22,8 @@ function run_ruralABM(;
     MODEL_RUNS = 100,
     TOWN_NAMES = "small",
     STORE_NETWORK_SCM = true,
-    STORE_EPIDEMIC_SCM = true
+    STORE_EPIDEMIC_SCM = true,
+    NUMBER_WORKERS = 5
     )
 
     _run_ruralABM(
@@ -34,7 +35,8 @@ function run_ruralABM(;
         MODEL_RUNS = MODEL_RUNS,
         TOWN_NAMES = TOWN_NAMES,
         STORE_NETWORK_SCM = STORE_NETWORK_SCM,
-        STORE_EPIDEMIC_SCM = STORE_EPIDEMIC_SCM
+        STORE_EPIDEMIC_SCM = STORE_EPIDEMIC_SCM,
+        NUMBER_WORKERS = NUMBER_WORKERS
     )
 end
 
@@ -74,6 +76,8 @@ function export_database(filepath, connection = _create_default_connection())
 end
     
 function load_exported_db(filepath)
+    connection = _create_default_connection()
+
     # Check if machine is windows or linux
     if Sys.iswindows()
         # Check `data` directory exists
@@ -91,7 +95,7 @@ function load_exported_db(filepath)
             for line in eachline(file)
                 if line != "" && line != ";"
                     # run query
-                    _run_query("""$line""")
+                    _run_query("""$line""", connection)
                 end
             end
         end
@@ -106,7 +110,7 @@ function load_exported_db(filepath)
             for line in eachline(file)
                 if line != "" && line != ";"
                     # run query
-                    _run_query("""$line""")
+                    _run_query("""$line""", connection)
                 end
             end
         end
@@ -126,7 +130,7 @@ function load_exported_db(filepath)
             for line in eachline(file)
                 if line != "" && line != ";"
                     # run query
-                    _run_query("""$line""")
+                    _run_query("""$line""", connection)
                 end
             end
         end
@@ -141,11 +145,12 @@ function load_exported_db(filepath)
             for line in eachline(file)
                 if line != "" && line != ";"
                     # run query
-                    _run_query("""$line""")
+                    _run_query("""$line""", connection)
                 end
             end
         end
     end
+    DBInterface.close(connection)
 end
 
 function connect_to_database()
@@ -153,6 +158,5 @@ function connect_to_database()
 end
 
 function disconnect_from_database!(connection)
-    DuckDB.close_database(connection)
-    GC.gc()
+    DBInterface.close(connection)
 end

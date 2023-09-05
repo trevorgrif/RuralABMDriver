@@ -21,7 +21,8 @@ function _run_ruralABM(;
     MODEL_RUNS::Int = 100,
     TOWN_NAMES = "small",
     STORE_NETWORK_SCM = true,
-    STORE_EPIDEMIC_SCM = true
+    STORE_EPIDEMIC_SCM = true,
+    NUMBER_WORKERS = 5
     )
     # Verify input parameters
     @assert SOCIAL_NETWORKS > 0 "SOCIAL_NETWORKS must be greater than 0"
@@ -41,7 +42,7 @@ function _run_ruralABM(;
 
     # Run simulations in parallel
     println("Starting Simulation")
-    _begin_simulations_faster(SOCIAL_NETWORKS, MASKING_LEVELS, VACCINATION_LEVELS, DISTRIBUTION_TYPE, MODEL_RUNS, NETWORK_LENGTH, TOWN_NAMES, STORE_NETWORK_SCM, STORE_EPIDEMIC_SCM)
+    _begin_simulations_faster(SOCIAL_NETWORKS, MASKING_LEVELS, VACCINATION_LEVELS, DISTRIBUTION_TYPE, MODEL_RUNS, NETWORK_LENGTH, TOWN_NAMES, STORE_NETWORK_SCM, STORE_EPIDEMIC_SCM, NUMBER_WORKERS)
 
     # Vacuum database
     println("Vacuuming Database")
@@ -308,41 +309,41 @@ function _begin_simulations(connection, town_networks::Int, mask_levels::Int, va
     end
 end
 
-function _begin_simulations_faster(town_networks::Int, mask_levels::Int, vaccine_levels::Int, distribution_type::Vector{Int64}, runs::Int, duration_days_network, town, STORE_NETWORK_SCM::Bool, STORE_EPIDEMIC_SCM::Bool)
+function _begin_simulations_faster(town_networks::Int, mask_levels::Int, vaccine_levels::Int, distribution_type::Vector{Int64}, runs::Int, duration_days_network, town, STORE_NETWORK_SCM::Bool, STORE_EPIDEMIC_SCM::Bool, number_workers::Int)
     # Ensure at least 2 threads are available, one main thread and one for the _dbWriterTask
     @assert Threads.nthreads() > 1 "Not enough threads to run multi-threaded simulation. $(Threads.nthreads()) detected, at least 2 required"
+
+    # Build Workers
+    addprocs(number_workers, exeflags="--project=$(Base.active_project())")
+    eval(macroexpand(RuralABMDriver,quote @everywhere using RuralABMDriver end))
     
     # Prepare town level channels
     townLevelWrites = 1
     networkLevelWrites = town_networks
     behaviorLevelWrites = mask_levels * vaccine_levels * town_networks
     epidemicLevelWrites = mask_levels * vaccine_levels * town_networks * runs
-    
-    global townLevelJobsChannel = Channel(1)
-    
+        
     # Prepare pipeline layers
-    numberWorkers = length(workers())
-    global jobsChannel = RemoteChannel(()->Channel(epidemicLevelWrites))
-    global writesChannel = RemoteChannel(()->Channel(epidemicLevelWrites))
+    jobsChannel = RemoteChannel(()->Channel(2*number_workers))
+    writesChannel = RemoteChannel(()->Channel(2*number_workers))
 
-    global populationModels = RemoteChannel(()->Channel(1)); 
-    global stableModels = RemoteChannel(()->Channel(town_networks));
-    global behavedModels = RemoteChannel(()->Channel(behaviorLevelWrites));
+    populationModels = RemoteChannel(()->Channel(1)); 
+    stableModels = RemoteChannel(()->Channel(town_networks));
+    behavedModels = RemoteChannel(()->Channel(behaviorLevelWrites));
 
-    global townIdChannel = Channel(townLevelWrites)
-    global networkIdChannel = Channel(networkLevelWrites)
-    global behaviorIdChannel = Channel(behaviorLevelWrites)
-    global epidemicIdChannel = Channel(epidemicLevelWrites)
-
+    townIdChannel = RemoteChannel(()->Channel(townLevelWrites))
+    networkIdChannel = RemoteChannel(()->Channel(networkLevelWrites))
+    behaviorIdChannel = RemoteChannel(()->Channel(behaviorLevelWrites))
+    epidemicIdChannel = RemoteChannel(()->Channel(epidemicLevelWrites))
 
     println("All channels created")
 
     # On a separate thread begin the Writer() which handles all writes to the db
-    writerTask = Threads.@spawn _dbWriterTask(townLevelWrites, networkLevelWrites, behaviorLevelWrites, epidemicLevelWrites, STORE_NETWORK_SCM, STORE_EPIDEMIC_SCM)
+    writerTask = Threads.@spawn _dbWriterTask(townLevelWrites, networkLevelWrites, behaviorLevelWrites, epidemicLevelWrites, STORE_NETWORK_SCM, STORE_EPIDEMIC_SCM, writesChannel, populationModels, stableModels, behavedModels, townIdChannel, networkIdChannel, behaviorIdChannel, epidemicIdChannel)
 
     # Run the raw models to establish a social network
-    println("Spinning Up Workers")
     for p in workers()
+        println("Spinning Up Worker $p")
         remote_do(Spin_Up_Worker, p, jobsChannel, writesChannel, duration_days_network)
     end
 
@@ -366,18 +367,26 @@ function _begin_simulations_faster(town_networks::Int, mask_levels::Int, vaccine
     
     # Store TownDim Level
     println("Feeding Town Structure")
-    errormonitor(Threads.@spawn _populate_raw_model_channel(town_networks))    
-    errormonitor(Threads.@spawn _populate_unbehaved_models(mask_levels, vaccine_levels, town_networks))
-    errormonitor(Threads.@spawn _populate_seeded_models(runs, mask_levels, vaccine_levels, town_networks))
+    errormonitor(Threads.@spawn _populate_raw_model_channel(town_networks, jobsChannel, populationModels))    
+    errormonitor(Threads.@spawn _populate_unbehaved_models(mask_levels, vaccine_levels, town_networks, jobsChannel, stableModels))
+    errormonitor(Threads.@spawn _populate_seeded_models(runs, mask_levels, vaccine_levels, town_networks, jobsChannel, behavedModels))
 
     # Let dbWriterTask finish
     wait(writerTask)
 
+    # Clean-up
+    finalize(townIdChannel)
+    finalize(networkIdChannel)
+    finalize(behaviorIdChannel)
+    finalize(epidemicIdChannel)
+
     # Kill wokrer processes
-    interrupt()
+    rmprocs(workers()...)
+
+
 end
 
-function _dbWriterTask(townLevelWrites, networkLevelWrites, behaviorLevelWrites, epidemicLevelWrites, STORE_NETWORK_SCM, STORE_EPIDEMIC_SCM)
+function _dbWriterTask(townLevelWrites, networkLevelWrites, behaviorLevelWrites, epidemicLevelWrites, STORE_NETWORK_SCM, STORE_EPIDEMIC_SCM, writesChannel, populationModels, stableModels, behavedModels, townIdChannel, networkIdChannel, behaviorIdChannel, epidemicIdChannel)
     connection = _create_default_connection()
 
     # Insert Id data
@@ -407,13 +416,13 @@ function _dbWriterTask(townLevelWrites, networkLevelWrites, behaviorLevelWrites,
             model, task = take!(writesChannel)
     
             if task == "Town Level"
-                Threads.@spawn _append_town_structure(connection, model)
+                errormonitor(Threads.@spawn _append_town_structure(connection, model, populationModels, townIdChannel))
             elseif task == "Network Level"
-                Threads.@spawn _append_network_level_data(connection, model, STORE_NETWORK_SCM)
+                errormonitor(Threads.@spawn _append_network_level_data(connection, model, STORE_NETWORK_SCM, stableModels, networkIdChannel))
             elseif task == "Behavior Level"
-                Threads.@spawn _append_behavior_level_data(connection, model)
+                errormonitor(Threads.@spawn _append_behavior_level_data(connection, model, behavedModels, behaviorIdChannel))
             elseif task == "Epidemic Level"
-                Threads.@spawn _append_epidemic_level_data(connection, model, STORE_EPIDEMIC_SCM)
+                errormonitor(Threads.@spawn _append_epidemic_level_data(connection, model, STORE_EPIDEMIC_SCM, epidemicIdChannel))
             end
             println("Jobs Complete: $i/$jobs")
         end
@@ -422,11 +431,7 @@ function _dbWriterTask(townLevelWrites, networkLevelWrites, behaviorLevelWrites,
     DBInterface.close(connection)
 end
 
-function _feed_town_structure_channel(model)
-    put!(townLevelJobsChannel, model)
-end
-
-function _populate_seeded_models(runs, mask_levels, vaccine_levels, networks)
+function _populate_seeded_models(runs, mask_levels, vaccine_levels, networks, jobsChannel, behavedModels)
     for _ in 1:(mask_levels * vaccine_levels * networks)
         behavedModel = take!(behavedModels)
         for _ in 1:runs
@@ -435,7 +440,7 @@ function _populate_seeded_models(runs, mask_levels, vaccine_levels, networks)
     end
 end
 
-function _populate_unbehaved_models(mask_levels, vaccine_levels, networks)
+function _populate_unbehaved_models(mask_levels, vaccine_levels, networks, jobsChannel, stableModels)
     # Compute target levels for masks and vaccines
     mask_incr = floor(100/(mask_levels))
     vacc_incr = floor(100/(vaccine_levels))
@@ -451,14 +456,15 @@ function _populate_unbehaved_models(mask_levels, vaccine_levels, networks)
 
 end
 
-function _populate_raw_model_channel(networks)
+function _populate_raw_model_channel(networks, jobsChannel, populationModels)
     model = take!(populationModels)
+
     for _ in 1:networks
         put!(jobsChannel, (model, "Build Network"))
     end
 end
 
-function _append_epidemic_level_data(connection, model, STORE_EPIDEMIC_SCM)
+function _append_epidemic_level_data(connection, model, STORE_EPIDEMIC_SCM, epidemicIdChannel)
 
     model.epidemic_id = take!(epidemicIdChannel)
 
@@ -519,7 +525,7 @@ function _append_epidemic_level_data(connection, model, STORE_EPIDEMIC_SCM)
     end
 end
 
-function _append_behavior_level_data(connection, model)
+function _append_behavior_level_data(connection, model, behavedModels, behaviorIdChannel)
 
     model.behavior_id = take!(behaviorIdChannel)
     put!(behavedModels, model)
@@ -546,7 +552,7 @@ function _append_behavior_level_data(connection, model)
     DuckDB.close(appender)
 end
 
-function _append_town_structure(connection, model)
+function _append_town_structure(connection, model, populationModels, townIdChannel)
     model.town_id = take!(townIdChannel)
     put!(populationModels, model)
 
@@ -592,7 +598,7 @@ function _append_town_structure(connection, model)
     DuckDB.close(appender)
 end
 
-function _append_network_level_data(connection, model, STORE_NETWORK_SCM)
+function _append_network_level_data(connection, model, STORE_NETWORK_SCM, stableModels, networkIdChannel)
     model.network_id = take!(networkIdChannel)
     put!(stableModels, model)    
     

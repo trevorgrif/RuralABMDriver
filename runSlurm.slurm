@@ -11,4 +11,4 @@ module load julia
 
 cd $SLURM_SUBMIT_DIR
 
-julia -t 8 -p 32 -L distributed_startup.jl $FILE
+julia -t 10 -p 32 $FILE
