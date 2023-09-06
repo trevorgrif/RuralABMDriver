@@ -1,3 +1,7 @@
+using Pkg
+Pkg.activate(".")
+using RuralABMDriver
+
 RuralABMDriver.run_ruralABM(
    SOCIAL_NETWORKS = 10,
    NETWORK_LENGTH = 30,
