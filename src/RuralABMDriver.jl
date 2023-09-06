@@ -24,7 +24,7 @@ disconnect_from_database!,
 @everywhere using Printf
 @everywhere using DuckDB
 @everywhere using Parquet
-@everywhere using ProgressBars
+@everywhere using ClusterManagers
 
 include("api.jl")
 include("server.jl")

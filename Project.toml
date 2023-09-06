@@ -4,6 +4,7 @@ uuid = "881f1f65-49dc-4678-abfb-1ab20cc0e0da"
 [deps]
 Agents = "46ada45e-f475-11e8-01d0-f70cc89e6671"
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
+ClusterManagers = "34f1f09b-3a8b-5176-ab39-66d58a4d544e"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Distributed = "8ba89e20-285c-5b6f-9357-94700520ee1b"
 DuckDB = "d2f5444f-75bc-4fdf-ac35-56f514c445e1"

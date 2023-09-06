@@ -314,7 +314,7 @@ function _begin_simulations_faster(town_networks::Int, mask_levels::Int, vaccine
     @assert Threads.nthreads() > 1 "Not enough threads to run multi-threaded simulation. $(Threads.nthreads()) detected, at least 2 required"
 
     # Build Workers
-    addprocs(number_workers, exeflags="--project=$(Base.active_project())")
+    addprocs(SlurmManager(number_workers), exeflags="--project=$(Base.active_project())")
     eval(macroexpand(RuralABMDriver,quote @everywhere using RuralABMDriver end))
     
     # Prepare town level channels
