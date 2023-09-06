@@ -315,6 +315,7 @@ function _begin_simulations_faster(town_networks::Int, mask_levels::Int, vaccine
 
     # Build Workers
     addprocs(SlurmManager(number_workers), exeflags="--project=$(Base.active_project())")
+    #addprocs(number_workers, exeflags="--project=$(Base.active_project())")
     eval(macroexpand(RuralABMDriver,quote @everywhere using RuralABMDriver end))
     
     # Prepare town level channels
@@ -382,8 +383,6 @@ function _begin_simulations_faster(town_networks::Int, mask_levels::Int, vaccine
 
     # Kill wokrer processes
     rmprocs(workers()...)
-
-
 end
 
 function _dbWriterTask(townLevelWrites, networkLevelWrites, behaviorLevelWrites, epidemicLevelWrites, STORE_NETWORK_SCM, STORE_EPIDEMIC_SCM, writesChannel, populationModels, stableModels, behavedModels, townIdChannel, networkIdChannel, behaviorIdChannel, epidemicIdChannel)
@@ -425,6 +424,10 @@ function _dbWriterTask(townLevelWrites, networkLevelWrites, behaviorLevelWrites,
                 errormonitor(Threads.@spawn _append_epidemic_level_data(connection, model, STORE_EPIDEMIC_SCM, epidemicIdChannel))
             end
             println("Jobs Complete: $i/$jobs")
+            if (i % 200 == 0) 
+                println("Garbage Collecting")
+                @everywhere GC.gc()
+            end
         end
     end 
 
