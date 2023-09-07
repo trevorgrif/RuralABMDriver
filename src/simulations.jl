@@ -316,6 +316,8 @@ function _begin_simulations_faster(town_networks::Int, mask_levels::Int, vaccine
     # Build Workers
     println("Activating $(Base.active_project()) everywhere")
     addprocs(number_workers)
+    eval(macroexpand(RuralABMDriver,quote @everywhere using Pkg end))
+    @everywhere Pkg.instantiate()
     eval(macroexpand(RuralABMDriver,quote @everywhere using RuralABMDriver end))
     
     # Prepare town level channels
