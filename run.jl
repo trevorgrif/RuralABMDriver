@@ -1,55 +1,52 @@
-using Pkg
-Pkg.activate(".")
-using RuralABMDriver
+con = create_default_connection()
+create_database_structure(con)
 
-RuralABMDriver.run_ruralABM(
-   SOCIAL_NETWORKS = 10,
-   NETWORK_LENGTH = 30,
-   MASKING_LEVELS = 5,
-   VACCINATION_LEVELS = 5,
-   DISTRIBUTION_TYPE = [0, 0], #Order is [MASK, VAX], 0 = Random, 1 = Watts
-   MODEL_RUNS = 100,
-   TOWN_NAMES = "small",
-   STORE_NETWORK_SCM = true,
-   STORE_EPIDEMIC_SCM = true,
-   NUMBER_WORKERS = 32
+run_simulations(                                                                                                                                                                                                                                                         
+   RuralABMDriver.town_parameters("small"),                                                                                                                                                                                                                                             
+   RuralABMDriver.network_parameters(30),                                                                                                                                                                                                                                               
+   10,                                                                                                                                                                                                                                                                                   
+   RuralABMDriver.behavior_parameters("Random", "Random",5,5),                                                                                                                                                                                                                          
+   1,                                                                                                                                                                                                                                                                                   
+   100,                                                                                                                                                                                                                                                                                  
+   con,                                                                                                                                                                                                                                                                                 
+   STORE_NETWORK_SCM=true,                                                                                                                                                                                                                                                              
+   STORE_EPIDEMIC_SCM=true                                                                                                                                                                                                                                                              
    )
 
-RuralABMDriver.run_ruralABM(
-   SOCIAL_NETWORKS = 10,
-   NETWORK_LENGTH = 30,
-   MASKING_LEVELS = 5,
-   VACCINATION_LEVELS = 5,
-   DISTRIBUTION_TYPE = [0, 1], #Order is [MASK, VAX], 0 = Random, 1 = Watts
-   MODEL_RUNS = 100,
-   TOWN_NAMES = "small",
-   STORE_NETWORK_SCM = true,
-   STORE_EPIDEMIC_SCM = true,
-   NUMBER_WORKERS = 32
+run_simulations(                                                                                                                                                                                                                                                         
+   RuralABMDriver.town_parameters("small"),                                                                                                                                                                                                                                             
+   RuralABMDriver.network_parameters(30),                                                                                                                                                                                                                                               
+   10,                                                                                                                                                                                                                                                                                   
+   RuralABMDriver.behavior_parameters("Watts", "Random",5,5),                                                                                                                                                                                                                          
+   1,                                                                                                                                                                                                                                                                                   
+   100,                                                                                                                                                                                                                                                                                  
+   con,                                                                                                                                                                                                                                                                                 
+   STORE_NETWORK_SCM=true,                                                                                                                                                                                                                                                              
+   STORE_EPIDEMIC_SCM=true                                                                                                                                                                                                                                                              
    )
 
-RuralABMDriver.run_ruralABM(
-   SOCIAL_NETWORKS = 10,
-   NETWORK_LENGTH = 30,
-   MASKING_LEVELS = 5,
-   VACCINATION_LEVELS = 5,
-   DISTRIBUTION_TYPE = [1, 0], #Order is [MASK, VAX], 0 = Random, 1 = Watts
-   MODEL_RUNS = 100,
-   TOWN_NAMES = "small",
-   STORE_NETWORK_SCM = true,
-   STORE_EPIDEMIC_SCM = true,
-   NUMBER_WORKERS = 32
+run_simulations(                                                                                                                                                                                                                                                         
+   RuralABMDriver.town_parameters("small"),                                                                                                                                                                                                                                             
+   RuralABMDriver.network_parameters(30),                                                                                                                                                                                                                                               
+   10,                                                                                                                                                                                                                                                                                   
+   RuralABMDriver.behavior_parameters("Random", "Watts",5,5),                                                                                                                                                                                                                          
+   1,                                                                                                                                                                                                                                                                                   
+   100,                                                                                                                                                                                                                                                                                  
+   con,                                                                                                                                                                                                                                                                                 
+   STORE_NETWORK_SCM=true,                                                                                                                                                                                                                                                              
+   STORE_EPIDEMIC_SCM=true                                                                                                                                                                                                                                                              
    )
 
-RuralABMDriver.run_ruralABM(
-   SOCIAL_NETWORKS = 10,
-   NETWORK_LENGTH = 30,
-   MASKING_LEVELS = 5,
-   VACCINATION_LEVELS = 5,
-   DISTRIBUTION_TYPE = [1, 1], #Order is [MASK, VAX], 0 = Random, 1 = Watts
-   MODEL_RUNS = 100,
-   TOWN_NAMES = "small",
-   STORE_NETWORK_SCM = true,
-   STORE_EPIDEMIC_SCM = true,
-   NUMBER_WORKERS = 32
+run_simulations(                                                                                                                                                                                                                                                         
+   RuralABMDriver.town_parameters("small"),                                                                                                                                                                                                                                             
+   RuralABMDriver.network_parameters(30),                                                                                                                                                                                                                                               
+   10,                                                                                                                                                                                                                                                                                   
+   RuralABMDriver.behavior_parameters("Watts", "Watts",5,5),                                                                                                                                                                                                                          
+   1,                                                                                                                                                                                                                                                                                   
+   100,                                                                                                                                                                                                                                                                                  
+   con,                                                                                                                                                                                                                                                                                 
+   STORE_NETWORK_SCM=true,                                                                                                                                                                                                                                                              
+   STORE_EPIDEMIC_SCM=true                                                                                                                                                                                                                                                              
    )
+
+disconnect_from_database!(con)

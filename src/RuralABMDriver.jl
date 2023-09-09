@@ -4,7 +4,7 @@ using Distributed
 
 export 
 
-run_ruralABM,
+run_simulations,
 run_query,
 create_database_structure,
 drop_database_structure,
@@ -14,7 +14,10 @@ export_database,
 load_exported_db,
 connect_to_database,
 disconnect_from_database!,
-@query
+@query,
+town_parameters,
+network_parameters,
+behavior_parameters
 
 # Modules used for parallel computing
 @everywhere using RuralABM
