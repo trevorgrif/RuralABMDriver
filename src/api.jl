@@ -391,8 +391,12 @@ function fill_epidemic_target(behaviorId::Int, targetEpidemicAmount::Int, connec
 
     (numberEpidemics >= targetEpidemicAmount) && return []
 
+    epidemidIds = []
     epidemicRuns = targetEpidemicAmount - numberEpidemics
-    epidemicIds = _create_epidemic_distributed!(model, epidemicRuns, connection, STORE_EPIDEMIC_SCM=STORE_EPIDEMIC_SCM)
+    for _ in 1:epidemicRuns
+        epidemicId = _create_epidemic!(model, connection, STORE_EPIDEMIC_SCM=STORE_EPIDEMIC_SCM)
+        push!(epidemicIds, epidemicId)
+    end
     
     return epidemicIds
 end
