@@ -439,71 +439,69 @@ function _create_epidemic_distributed!(model, epidemic_runs::Int, connection::Du
     pmap(Seed_Contagion!, models; retry_delays = zeros(3))
     pmap(Run_Model!, models)
 
-    epidemicIds = []
-    for model in models
-        # Store Results
-        epidemicId = run_query("SELECT nextval('EpidemicDimSequence')", connection)[1,1]
-        model.epidemic_id = epidemicId
-
-        # Append EpidemicDim data
-        appender = DuckDB.Appender(connection, "EpidemicDim")
-        DuckDB.append(appender, model.epidemic_id)
-        DuckDB.append(appender, model.behavior_id)
-        DuckDB.append(appender, model.epidemic_statistics[1,1])
-        DuckDB.append(appender, model.epidemic_statistics[1,2])
-        DuckDB.append(appender, model.epidemic_statistics[1,3])
-        DuckDB.append(appender, model.epidemic_statistics[1,4])
-        DuckDB.append(appender, model.epidemic_statistics[1,5])
-        DuckDB.append(appender, model.epidemic_statistics[1,6])
-        DuckDB.append(appender, model.epidemic_statistics[1,7])
-        DuckDB.end_row(appender)
-        DuckDB.close(appender)
-
-        # Append EpidemicLoad data
-        appender = DuckDB.Appender(connection, "EpidemicLoad")
-        for row in eachrow(model.epidemic_data)
-            DuckDB.append(appender, model.epidemic_id)
-            DuckDB.append(appender, row[1])
-            DuckDB.append(appender, row[2])
-            DuckDB.append(appender, row[3])
-            DuckDB.append(appender, row[4])
-            DuckDB.end_row(appender)
-        end
-        DuckDB.close(appender)
-
-        # Append TransmissionLoad data
-        appender = DuckDB.Appender(connection, "TransmissionLoad")
-        for row in eachrow(model.TransmissionNetwork)
-            DuckDB.append(appender, model.epidemic_id)
-            DuckDB.append(appender, row[1])
-            DuckDB.append(appender, row[2])
-            DuckDB.append(appender, row[3])
-            DuckDB.end_row(appender)
-        end
-        DuckDB.close(appender)
-
-        # Store Epidemic SCM
-        if STORE_EPIDEMIC_SCM
-            socialContactVector = Get_Compact_Adjacency_Matrix(model)
-            appender = DuckDB.Appender(connection, "EpidemicSCMLoad")
-            population = model.init_pop_size
-            epidemicSCMItr = 1
-            for agent1 in 1:population
-                for agent2 in agent1+1:population
-                    DuckDB.append(appender, model.epidemic_id)
-                    DuckDB.append(appender, agent1)
-                    DuckDB.append(appender, agent2)
-                    DuckDB.append(appender, socialContactVector[epidemicSCMItr])
-                    DuckDB.end_row(appender)
-                    epidemicSCMItr += 1
-                end
-            end
-            DuckDB.close(appender)
-        end
-        push!(epidemicIds, model.epidemic_id)
-    end
+    epidemicIds = pmap(_append_epidemic_level_data, models, [STORE_EPIDEMIC_SCM for _ in 1:epidemic_runs], [connection for _ in 1:epidemic_runs]; distributed=false)
 
     return epidemicIds
+end
+
+function _append_epidemic_level_data(model, STORE_EPIDEMIC_SCM::Bool, connection::DuckDB.DB)
+    # Append EpidemicDim data
+    appender = DuckDB.Appender(connection, "EpidemicDim")
+    DuckDB.append(appender, model.epidemic_id)
+    DuckDB.append(appender, model.behavior_id)
+    DuckDB.append(appender, model.epidemic_statistics[1,1])
+    DuckDB.append(appender, model.epidemic_statistics[1,2])
+    DuckDB.append(appender, model.epidemic_statistics[1,3])
+    DuckDB.append(appender, model.epidemic_statistics[1,4])
+    DuckDB.append(appender, model.epidemic_statistics[1,5])
+    DuckDB.append(appender, model.epidemic_statistics[1,6])
+    DuckDB.append(appender, model.epidemic_statistics[1,7])
+    DuckDB.end_row(appender)
+    DuckDB.close(appender)
+
+    # Append EpidemicLoad data
+    appender = DuckDB.Appender(connection, "EpidemicLoad")
+    for row in eachrow(model.epidemic_data)
+        DuckDB.append(appender, model.epidemic_id)
+        DuckDB.append(appender, row[1])
+        DuckDB.append(appender, row[2])
+        DuckDB.append(appender, row[3])
+        DuckDB.append(appender, row[4])
+        DuckDB.end_row(appender)
+    end
+    DuckDB.close(appender)
+
+    # Append TransmissionLoad data
+    appender = DuckDB.Appender(connection, "TransmissionLoad")
+    for row in eachrow(model.TransmissionNetwork)
+        DuckDB.append(appender, model.epidemic_id)
+        DuckDB.append(appender, row[1])
+        DuckDB.append(appender, row[2])
+        DuckDB.append(appender, row[3])
+        DuckDB.end_row(appender)
+    end
+    DuckDB.close(appender)
+
+    # Store Epidemic SCM
+    if STORE_EPIDEMIC_SCM
+        socialContactVector = Get_Compact_Adjacency_Matrix(model)
+        appender = DuckDB.Appender(connection, "EpidemicSCMLoad")
+        population = model.init_pop_size
+        epidemicSCMItr = 1
+        for agent1 in 1:population
+            for agent2 in agent1+1:population
+                DuckDB.append(appender, model.epidemic_id)
+                DuckDB.append(appender, agent1)
+                DuckDB.append(appender, agent2)
+                DuckDB.append(appender, socialContactVector[epidemicSCMItr])
+                DuckDB.end_row(appender)
+                epidemicSCMItr += 1
+            end
+        end
+        DuckDB.close(appender)
+    end
+    
+    return model.epidemic_id
 end
 
 # function _begin_simulations_faster(town_networks::Int, mask_levels::Int, vaccine_levels::Int, distribution_type::Vector{Int64}, runs::Int, duration_days_network, town, STORE_NETWORK_SCM::Bool, STORE_EPIDEMIC_SCM::Bool, number_workers::Int)
@@ -666,66 +664,7 @@ end
 #     end
 # end
 
-# function _append_epidemic_level_data(connection, model, STORE_EPIDEMIC_SCM, epidemicIdChannel)
 
-#     model.epidemic_id = take!(epidemicIdChannel)
-
-#     # Append EpidemicDim data
-#     appender = DuckDB.Appender(connection, "EpidemicDim")
-#     DuckDB.append(appender, model.epidemic_id)
-#     DuckDB.append(appender, model.behavior_id)
-#     DuckDB.append(appender, model.epidemic_statistics[1,1])
-#     DuckDB.append(appender, model.epidemic_statistics[1,2])
-#     DuckDB.append(appender, model.epidemic_statistics[1,3])
-#     DuckDB.append(appender, model.epidemic_statistics[1,4])
-#     DuckDB.append(appender, model.epidemic_statistics[1,5])
-#     DuckDB.append(appender, model.epidemic_statistics[1,6])
-#     DuckDB.append(appender, model.epidemic_statistics[1,7])
-#     DuckDB.end_row(appender)
-#     DuckDB.close(appender)
-
-#     # Append EpidemicLoad data
-#     appender = DuckDB.Appender(connection, "EpidemicLoad")
-#     for row in eachrow(model.epidemic_data_daily)
-#         DuckDB.append(appender, model.epidemic_id)
-#         DuckDB.append(appender, row[1])
-#         DuckDB.append(appender, row[2])
-#         DuckDB.append(appender, row[3])
-#         DuckDB.append(appender, row[4])
-#         DuckDB.end_row(appender)
-#     end
-#     DuckDB.close(appender)
-
-#     # Append TransmissionLoad data
-#     appender = DuckDB.Appender(connection, "TransmissionLoad")
-#     for row in eachrow(model.TransmissionNetwork)
-#         DuckDB.append(appender, model.epidemic_id)
-#         DuckDB.append(appender, row[1])
-#         DuckDB.append(appender, row[2])
-#         DuckDB.append(appender, row[3])
-#         DuckDB.end_row(appender)
-#     end
-#     DuckDB.close(appender)
-
-#     # Store Epidemic SCM
-#     if STORE_EPIDEMIC_SCM
-#         socialContactVector = Get_Compact_Adjacency_Matrix(model)
-#         appender = DuckDB.Appender(connection, "EpidemicSCMLoad")
-#         population = model.init_pop_size
-#         epidemicSCMItr = 1
-#         for agent1 in 1:population
-#             for agent2 in agent1+1:population
-#                 DuckDB.append(appender, model.epidemic_id)
-#                 DuckDB.append(appender, agent1)
-#                 DuckDB.append(appender, agent2)
-#                 DuckDB.append(appender, socialContactVector[epidemicSCMItr])
-#                 DuckDB.end_row(appender)
-#                 epidemicSCMItr += 1
-#             end
-#         end
-#         DuckDB.close(appender)
-#     end
-# end
 
 # function _append_behavior_level_data(connection, model, behavedModels, behaviorIdChannel)
 

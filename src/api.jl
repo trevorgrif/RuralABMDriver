@@ -222,6 +222,10 @@ function run_simulations(
     return epidemicIds
 end
 
+function vacuum_database()
+    _vacuum_database()
+end
+
 function run_simulations(
     townId::Int,
     networkData::network_parameters,
@@ -242,7 +246,7 @@ function run_simulations(
     println("Filling Behaviors")
     behaviorIds = []
     for networkId in networkIds
-        networkBehaviorIds = fill_behaved_network_range(networkId, behaviorData.maskLevels, behaviorData.vaxLevels, behaviorCount, connection)
+        networkBehaviorIds = fill_behaved_network_range(networkId, behaviorData.maskDistributionType, behaviorData.vaxDistributionType, behaviorData.maskLevels, behaviorData.vaxLevels, behaviorCount, connection)
         push!(behaviorIds, networkBehaviorIds...)
     end
 
@@ -253,7 +257,6 @@ function run_simulations(
         push!(epidemicIds, behaviorEpidemicIds...)
     end
 
-    _vacuum_database()
     return epidemicIds
 end
 
@@ -391,11 +394,12 @@ function fill_epidemic_target(behaviorId::Int, targetEpidemicAmount::Int, connec
 
     (numberEpidemics >= targetEpidemicAmount) && return []
 
-    epidemidIds = []
+    epidemicIds = []
     epidemicRuns = targetEpidemicAmount - numberEpidemics
-    for _ in 1:epidemicRuns
+    for i in 1:epidemicRuns
         epidemicId = _create_epidemic!(model, connection, STORE_EPIDEMIC_SCM=STORE_EPIDEMIC_SCM)
         push!(epidemicIds, epidemicId)
+        println("Latest Epidemic ID: $(epidemicId)")
     end
     
     return epidemicIds

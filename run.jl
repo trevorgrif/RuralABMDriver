@@ -1,19 +1,6 @@
+
+
 con = connect_to_database()
-create_database_structure(con)
-create_town("small", con)
-
-run_simulations(                                                                                                                                                                                                                                                         
-   1,                                                                                                                                                                                                                                             
-   RuralABMDriver.network_parameters(30),                                                                                                                                                                                                                                               
-   10,                                                                                                                                                                                                                                                                                   
-   RuralABMDriver.behavior_parameters("Random", "Random", 5, 5),                                                                                                                                                                                                                          
-   1,                                                                                                                                                                                                                                                                                   
-   100,                                                                                                                                                                                                                                                                                  
-   con,                                                                                                                                                                                                                                                                                 
-   STORE_NETWORK_SCM=true,                                                                                                                                                                                                                                                              
-   STORE_EPIDEMIC_SCM=true                                                                                                                                                                                                                                                              
-   )
-
 run_simulations(                                                                                                                                                                                                                                                         
    1,                                                                                                                                                                                                                                             
    RuralABMDriver.network_parameters(30),                                                                                                                                                                                                                                               
@@ -25,7 +12,25 @@ run_simulations(
    STORE_NETWORK_SCM=true,                                                                                                                                                                                                                                                              
    STORE_EPIDEMIC_SCM=true                                                                                                                                                                                                                                                              
    )
+disconnect_from_database!(con)
+vacuum_database()
 
+con = connect_to_database()
+run_simulations(                                                                                                                                                                                                                                                         
+   1,                                                                                                                                                                                                                                             
+   RuralABMDriver.network_parameters(30),                                                                                                                                                                                                                                               
+   10,                                                                                                                                                                                                                                                                                   
+   RuralABMDriver.behavior_parameters("Watts", "Random", 5, 5),                                                                                                                                                                                                                          
+   1,                                                                                                                                                                                                                                                                                   
+   100,                                                                                                                                                                                                                                                                                  
+   con,                                                                                                                                                                                                                                                                                 
+   STORE_NETWORK_SCM=true,                                                                                                                                                                                                                                                              
+   STORE_EPIDEMIC_SCM=true                                                                                                                                                                                                                                                              
+   )
+disconnect_from_database!(con)
+vacuum_database()
+
+con = connect_to_database()
 run_simulations(                                                                                                                                                                                                                                                         
    1,                                                                                                                                                                                                                                             
    RuralABMDriver.network_parameters(30),                                                                                                                                                                                                                                               
@@ -37,7 +42,10 @@ run_simulations(
    STORE_NETWORK_SCM=true,                                                                                                                                                                                                                                                              
    STORE_EPIDEMIC_SCM=true                                                                                                                                                                                                                                                              
    )
+disconnect_from_database!(con)
+vacuum_database()
 
+con = connect_to_database()
 run_simulations(                                                                                                                                                                                                                                                         
    1,                                                                                                                                                                                                                                             
    RuralABMDriver.network_parameters(30),                                                                                                                                                                                                                                               
@@ -49,5 +57,6 @@ run_simulations(
    STORE_NETWORK_SCM=true,                                                                                                                                                                                                                                                              
    STORE_EPIDEMIC_SCM=true                                                                                                                                                                                                                                                              
    )
-
 disconnect_from_database!(con)
+vacuum_database()
+

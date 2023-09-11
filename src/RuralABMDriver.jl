@@ -18,7 +18,8 @@ disconnect_from_database!,
 town_parameters,
 network_parameters,
 behavior_parameters,
-create_town
+create_town,
+vacuum_database
 
 # Modules used for parallel computing
 @everywhere using RuralABM
