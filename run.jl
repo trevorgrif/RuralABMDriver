@@ -1,6 +1,6 @@
 con = connect_to_database()
 create_database_structure(con)
-create_town("small", connection)
+create_town("small", con)
 
 run_simulations(                                                                                                                                                                                                                                                         
    1,                                                                                                                                                                                                                                             
