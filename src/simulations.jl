@@ -439,6 +439,11 @@ function _create_epidemic_distributed!(model, epidemic_runs::Int, connection::Du
     pmap(Seed_Contagion!, models; retry_delays = zeros(3))
     pmap(Run_Model!, models)
 
+    for model in models
+        id = run_query("SELECT nextval('EpidemicDimSequence')", connection)[1,1]
+        model.epidemic_id = id 
+    end
+
     epidemicIds = pmap(_append_epidemic_level_data, models, [STORE_EPIDEMIC_SCM for _ in 1:epidemic_runs], [connection for _ in 1:epidemic_runs]; distributed=false)
 
     return epidemicIds

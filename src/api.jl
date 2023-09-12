@@ -396,11 +396,17 @@ function fill_epidemic_target(behaviorId::Int, targetEpidemicAmount::Int, connec
 
     epidemicIds = []
     epidemicRuns = targetEpidemicAmount - numberEpidemics
-    for i in 1:epidemicRuns
-        epidemicId = _create_epidemic!(model, connection, STORE_EPIDEMIC_SCM=STORE_EPIDEMIC_SCM)
-        push!(epidemicIds, epidemicId)
-        println("Latest Epidemic ID: $(epidemicId)")
-    end
+    completeEpidemicIds = _create_epidemic_distributed!(model, epidemicRuns, connection, STORE_EPIDEMIC_SCM=STORE_EPIDEMIC_SCM)
+    push!(epidemicIds, completeEpidemicIds)
+    println("Complete Epidemics: $(completeEpidemicIds[1]) - $(last(completeEpidemicIds))")
+
+    # epidemicIds = []
+    # epidemicRuns = targetEpidemicAmount - numberEpidemics
+    # for i in 1:epidemicRuns
+    #     epidemicId = _create_epidemic!(model, connection, STORE_EPIDEMIC_SCM=STORE_EPIDEMIC_SCM)
+    #     push!(epidemicIds, epidemicId)
+    #     println("Latest Epidemic ID: $(epidemicId)")
+    # end
     
     return epidemicIds
 end
