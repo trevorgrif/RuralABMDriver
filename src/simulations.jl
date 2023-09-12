@@ -436,8 +436,8 @@ function _create_epidemic_distributed!(model, epidemic_runs::Int, connection::Du
     @assert epidemic_runs > -1 "epidemic_runs must be postive: $(epidemic_runs)"
 
     models = [deepcopy(model) for _ in 1:epidemic_runs]
-    pmap(Seed_Contagion!, models; retry_delays = zeros(3))
-    pmap(Run_Model!, models)
+    models = pmap(Seed_Contagion!, models; retry_delays = zeros(3))
+    models = pmap(Run_Model!, models)
 
     for model in models
         id = run_query("SELECT nextval('EpidemicDimSequence')", connection)[1,1]
