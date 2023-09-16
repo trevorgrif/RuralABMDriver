@@ -274,16 +274,15 @@ function fill_network_target(townId::Int, duration::Int, targetNetworkAmount::In
 
     # Compute number of networks needed to run
     query = """
-        SELECT COUNT(NetworkID) 
+        SELECT NetworkID 
         FROM NetworkDim
         WHERE TownID = $townId
         and ConstructionLengthDays = $duration
     """
-    numberNetworks = run_query(query, connection)[1,1]
+    networkIds = run_query(query, connection)[!,1] .|> Int
+    numberNetworks = length(networkIds)
+    (numberNetworks >= targetNetworkAmount) && return networkIds
 
-    (numberNetworks >= targetNetworkAmount) && return []
-
-    networkIds::Vector{Int} = []
     networkRuns = targetNetworkAmount - numberNetworks
     for _ in 1:networkRuns
         networkId = _create_network!(deepcopy(model), duration, connection, STORE_NETWORK_SCM = STORE_NETWORK_SCM)
@@ -304,7 +303,7 @@ function fill_behaved_network_target(networkId::Int, maskDistributionType::Strin
 
     # Compute number of networks needed to run
     query = """
-        SELECT COUNT(BehaviorID) 
+        SELECT BehaviorID 
         FROM BehaviorDim
         WHERE NetworkID = $networkId
         AND MaskPortion = $maskPortion
@@ -312,11 +311,10 @@ function fill_behaved_network_target(networkId::Int, maskDistributionType::Strin
         AND MaskDistributionType = '$maskDistributionType'
         AND VaxDistributionType = '$vaxDistributionType'
     """
-    numberBehaviors = run_query(query, connection)[1,1]
+    behaviorIds = run_query(query, connection)[!,1] .|> Int
+    numberBehaviors = length(behaviorIds)
+    (numberBehaviors >= targetBehavedNetworkAmount) && return behaviorIds
 
-    (numberBehaviors >= targetBehavedNetworkAmount) && return []
-
-    behaviorIds = []
     behavedNetworkRuns = targetBehavedNetworkAmount - numberBehaviors
     for _ in 1:behavedNetworkRuns
         behaviorId = _create_behaved_network!(deepcopy(model), maskDistributionType, vaxDistributionType, maskPortion, vaxPortion, connection)
@@ -334,19 +332,18 @@ function fill_behaved_network_target(model, maskDistributionType::String, vaxDis
 
     # Compute number of networks needed to run
     query = """
-        SELECT COUNT(BehaviorID) 
+        SELECT BehaviorID 
         FROM BehaviorDim
-        WHERE NetworkID = $(model.network_id)
+        WHERE NetworkID = $networkId
         AND MaskPortion = $maskPortion
         AND VaxPortion = $vaxPortion
         AND MaskDistributionType = '$maskDistributionType'
         AND VaxDistributionType = '$vaxDistributionType'
     """
-    numberBehaviors = run_query(query, connection)[1,1]
+    behaviorIds = run_query(query, connection)[!,1] .|> Int
+    numberBehaviors = length(behaviorIds)
+    (numberBehaviors >= targetBehavedNetworkAmount) && return behaviorIds
 
-    (numberBehaviors >= targetBehavedNetworkAmount) && return []
-
-    behaviorIds = []
     behavedNetworkRuns = targetBehavedNetworkAmount - numberBehaviors
     for _ in 1:behavedNetworkRuns
         behaviorId = _create_behaved_network!(deepcopy(model), maskDistributionType, vaxDistributionType, maskPortion, vaxPortion, connection)
@@ -386,27 +383,18 @@ function fill_epidemic_target(behaviorId::Int, targetEpidemicAmount::Int, connec
     model === nothing && return []
 
     query = """
-        SELECT COUNT(EpidemicID) 
+        SELECT EpidemicID 
         FROM EpidemicDim
         WHERE BehaviorID = $(model.behavior_id)
     """
-    numberEpidemics = run_query(query, connection)[1,1]
+    epidemicIds = run_query(query, connection)[!,1] .|> Int
+    numberEpidemics = length(epidemicIds)
+    (numberEpidemics >= targetEpidemicAmount) && return epidemicIds
 
-    (numberEpidemics >= targetEpidemicAmount) && return []
-
-    epidemicIds = []
     epidemicRuns = targetEpidemicAmount - numberEpidemics
     completeEpidemicIds = _create_epidemic_distributed!(model, epidemicRuns, connection, STORE_EPIDEMIC_SCM=STORE_EPIDEMIC_SCM)
     push!(epidemicIds, completeEpidemicIds)
-    println("Complete Epidemics: $(completeEpidemicIds[1]) - $(last(completeEpidemicIds))")
-
-    # epidemicIds = []
-    # epidemicRuns = targetEpidemicAmount - numberEpidemics
-    # for i in 1:epidemicRuns
-    #     epidemicId = _create_epidemic!(model, connection, STORE_EPIDEMIC_SCM=STORE_EPIDEMIC_SCM)
-    #     push!(epidemicIds, epidemicId)
-    #     println("Latest Epidemic ID: $(epidemicId)")
-    # end
+    println("Complete Epidemics: $(first(completeEpidemicIds)) - $(last(completeEpidemicIds))")
     
     return epidemicIds
 end
