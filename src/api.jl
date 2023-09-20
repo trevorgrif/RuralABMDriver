@@ -334,7 +334,7 @@ function fill_behaved_network_target(model, maskDistributionType::String, vaxDis
     query = """
         SELECT BehaviorID 
         FROM BehaviorDim
-        WHERE NetworkID = $networkId
+        WHERE NetworkID = $(model.network_id)
         AND MaskPortion = $maskPortion
         AND VaxPortion = $vaxPortion
         AND MaskDistributionType = '$maskDistributionType'
