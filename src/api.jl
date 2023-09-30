@@ -393,7 +393,7 @@ function fill_epidemic_target(behaviorId::Int, targetEpidemicAmount::Int, connec
 
     epidemicRuns = targetEpidemicAmount - numberEpidemics
     completeEpidemicIds = _create_epidemic_distributed!(model, epidemicRuns, connection, STORE_EPIDEMIC_SCM=STORE_EPIDEMIC_SCM)
-    push!(epidemicIds, completeEpidemicIds)
+    append!(epidemicIds, completeEpidemicIds)
     println("Complete Epidemics: $(first(completeEpidemicIds)) - $(last(completeEpidemicIds))")
     
     return epidemicIds
