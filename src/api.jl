@@ -59,6 +59,7 @@ function create_database_structure(connection)
     _create_database_structure(connection)
 end
 
+# TODO: Update to take in connection variable
 function drop_database_structure()
     _drop_database_structure()
 end
@@ -153,8 +154,8 @@ function load_exported_db(filepath)
     DBInterface.close(connection)
 end
 
-function connect_to_database()
-    _create_default_connection()
+function connect_to_database(filepath=joinpath("data", "GDWLND.duckdb"))
+    _create_default_connection(filepath)
 end
 
 function disconnect_from_database!(connection)
@@ -218,12 +219,12 @@ function run_simulations(
         push!(epidemicIds, behaviorEpidemicIds...)
     end
 
-    _vacuum_database()
-    return epidemicIds
+    connection = vacuum_database(connection)
+    return connection
 end
 
-function vacuum_database()
-    _vacuum_database()
+function vacuum_database(connection)
+    _vacuum_database(connection)
 end
 
 function run_simulations(
@@ -256,8 +257,8 @@ function run_simulations(
         behaviorEpidemicIds = fill_epidemic_target(behaviorId, epidemicCount, connection::DuckDB.DB; STORE_EPIDEMIC_SCM=STORE_EPIDEMIC_SCM)
         push!(epidemicIds, behaviorEpidemicIds...)
     end
-
-    return epidemicIds
+    connection = vacuum_database(connection)
+    return connection
 end
 
 function create_town(town_type::String, connection::DuckDB.DB)

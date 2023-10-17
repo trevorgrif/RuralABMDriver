@@ -20,9 +20,9 @@ Create a DBInterface connection to a databse.
 # kwargs
 - `database`: The path to the database file.
 """
-function _create_default_connection(;database = joinpath("data", "GDWLND.duckdb"))
-    isdir(dirname(database)) || mkdir(dirname(database))
-    return DBInterface.connect(DuckDB.DB, database)
+function _create_default_connection(filepath = joinpath("data", "GDWLND.duckdb"))
+    isdir(dirname(filepath)) || mkdir(dirname(filepath))
+    return DBInterface.connect(DuckDB.DB, filepath)
 end
 
 ######################################
@@ -69,43 +69,50 @@ function _create_tables(connection)
     end
 end
 
-function _vacuum_database()
-    connection = _create_default_connection(database=joinpath("data", "vacuumed.db"))
+function _vacuum_database(connection)
+    database_name = _run_query("SELECT database_name FROM duckdb_databases() WHERE database_name not in ('system', 'temp');", connection)[1,1]
+    path_connection = _run_query("SELECT path FROM duckdb_databases() WHERE database_name = '$(database_name)';", connection)[1,1]
 
-    _run_query("ATTACH '$(joinpath("data","GDWLND.duckdb"))' as source (READ_ONLY);", connection)
+    disconnect_from_database!(connection)
+
+    connection_vacuum = _create_default_connection(joinpath("data", "$(database_name)_vacuumed.duckdb"))
+
+    _run_query("ATTACH '$(joinpath("data","GDWLND.duckdb"))' as source (READ_ONLY);", connection_vacuum)
     
-    _run_query("CREATE TABLE PopulationDim AS SELECT * from source.main.PopulationDim;", connection)
-    _run_query("CREATE TABLE PopulationLoad AS SELECT * from source.main.PopulationLoad;", connection)
-    _run_query("CREATE TABLE TownDim AS SELECT * from source.main.TownDim;", connection)
-    _run_query("CREATE TABLE BusinessLoad AS SELECT * from source.main.BusinessLoad;", connection)
-    _run_query("CREATE TABLE HouseholdLoad AS SELECT * from source.main.HouseholdLoad;", connection)
-    _run_query("CREATE TABLE NetworkDim AS SELECT * from source.main.NetworkDim;", connection)
-    _run_query("CREATE TABLE NetworkSCMLoad AS SELECT * from source.main.NetworkSCMLoad;", connection)
-    _run_query("CREATE TABLE BehaviorDim AS SELECT * from source.main.BehaviorDim;", connection)
-    _run_query("CREATE TABLE AgentLoad AS SELECT * from source.main.AgentLoad;", connection)
-    _run_query("CREATE TABLE EpidemicDim AS SELECT * from source.main.EpidemicDim;", connection)
-    _run_query("CREATE TABLE EpidemicLoad AS SELECT * from source.main.EpidemicLoad;", connection)
-    _run_query("CREATE TABLE EpidemicSCMLoad AS SELECT * from source.main.EpidemicSCMLoad;", connection)
-    _run_query("CREATE TABLE TransmissionLoad AS SELECT * from source.main.TransmissionLoad;", connection)
+    _run_query("CREATE TABLE PopulationDim AS SELECT * from source.main.PopulationDim;", connection_vacuum)
+    _run_query("CREATE TABLE PopulationLoad AS SELECT * from source.main.PopulationLoad;", connection_vacuum)
+    _run_query("CREATE TABLE TownDim AS SELECT * from source.main.TownDim;", connection_vacuum)
+    _run_query("CREATE TABLE BusinessLoad AS SELECT * from source.main.BusinessLoad;", connection_vacuum)
+    _run_query("CREATE TABLE HouseholdLoad AS SELECT * from source.main.HouseholdLoad;", connection_vacuum)
+    _run_query("CREATE TABLE NetworkDim AS SELECT * from source.main.NetworkDim;", connection_vacuum)
+    _run_query("CREATE TABLE NetworkSCMLoad AS SELECT * from source.main.NetworkSCMLoad;", connection_vacuum)
+    _run_query("CREATE TABLE BehaviorDim AS SELECT * from source.main.BehaviorDim;", connection_vacuum)
+    _run_query("CREATE TABLE AgentLoad AS SELECT * from source.main.AgentLoad;", connection_vacuum)
+    _run_query("CREATE TABLE EpidemicDim AS SELECT * from source.main.EpidemicDim;", connection_vacuum)
+    _run_query("CREATE TABLE EpidemicLoad AS SELECT * from source.main.EpidemicLoad;", connection_vacuum)
+    _run_query("CREATE TABLE EpidemicSCMLoad AS SELECT * from source.main.EpidemicSCMLoad;", connection_vacuum)
+    _run_query("CREATE TABLE TransmissionLoad AS SELECT * from source.main.TransmissionLoad;", connection_vacuum)
 
-    val = _run_query("SELECT nextval('source.main.PopulationDimSequence')", connection)[1,1]
-    _run_query("CREATE SEQUENCE PopulationDimSequence START $val", connection)
-    val = _run_query("SELECT nextval('source.main.TownDimSequence')", connection)[1,1]
-    _run_query("CREATE SEQUENCE TownDimSequence START $val", connection)
-    val = _run_query("SELECT nextval('source.main.BusinessTypeDimSequence')", connection)[1,1]
-    _run_query("CREATE SEQUENCE BusinessTypeDimSequence START $val", connection)
-    val = _run_query("SELECT nextval('source.main.NetworkDimSequence')", connection)[1,1]
-    _run_query("CREATE SEQUENCE NetworkDimSequence START $val", connection)
-    val = _run_query("SELECT nextval('source.main.BehaviorDimSequence')", connection)[1,1]
-    _run_query("CREATE SEQUENCE BehaviorDimSequence START $val", connection)
-    val = _run_query("SELECT nextval('source.main.EpidemicDimSequence')", connection)[1,1]
-    _run_query("CREATE SEQUENCE EpidemicDimSequence START $val", connection)
+    val = _run_query("SELECT nextval('source.main.PopulationDimSequence')", connection_vacuum)[1,1]
+    _run_query("CREATE SEQUENCE PopulationDimSequence START $val", connection_vacuum)
+    val = _run_query("SELECT nextval('source.main.TownDimSequence')", connection_vacuum)[1,1]
+    _run_query("CREATE SEQUENCE TownDimSequence START $val", connection_vacuum)
+    val = _run_query("SELECT nextval('source.main.BusinessTypeDimSequence')", connection_vacuum)[1,1]
+    _run_query("CREATE SEQUENCE BusinessTypeDimSequence START $val", connection_vacuum)
+    val = _run_query("SELECT nextval('source.main.NetworkDimSequence')", connection_vacuum)[1,1]
+    _run_query("CREATE SEQUENCE NetworkDimSequence START $val", connection_vacuum)
+    val = _run_query("SELECT nextval('source.main.BehaviorDimSequence')", connection_vacuum)[1,1]
+    _run_query("CREATE SEQUENCE BehaviorDimSequence START $val", connection_vacuum)
+    val = _run_query("SELECT nextval('source.main.EpidemicDimSequence')", connection_vacuum)[1,1]
+    _run_query("CREATE SEQUENCE EpidemicDimSequence START $val", connection_vacuum)
 
-    _run_query("DETACH source;", connection)
+    _run_query("DETACH source;", connection_vacuum)
     
-    DBInterface.close(connection)
+    DBInterface.close(connection_vacuum)
+    mv(joinpath("data", "$(database_name)_vacuumed.duckdb"), "$(joinpath(path_connection))", force=true)
 
-    mv(joinpath("data", "vacuumed.db"), joinpath("data", "GDWLND.duckdb"), force=true)
+    connection = _create_default_connection(joinpath(path_connection))
+
 end
 
 function _get_model_by_town_id(townId::Int, connection)

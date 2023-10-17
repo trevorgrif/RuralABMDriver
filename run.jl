@@ -1,7 +1,7 @@
 
 
 con = connect_to_database()
-run_simulations(                                                                                                                                                                                                                                                         
+con = run_simulations(                                                                                                                                                                                                                                                         
    1,                                                                                                                                                                                                                                             
    RuralABMDriver.network_parameters(30),                                                                                                                                                                                                                                               
    10,                                                                                                                                                                                                                                                                                   
@@ -12,11 +12,8 @@ run_simulations(
    STORE_NETWORK_SCM=true,                                                                                                                                                                                                                                                              
    STORE_EPIDEMIC_SCM=true                                                                                                                                                                                                                                                              
    )
-disconnect_from_database!(con)
-vacuum_database()
 
-con = connect_to_database()
-run_simulations(                                                                                                                                                                                                                                                         
+con = run_simulations(                                                                                                                                                                                                                                                         
    1,                                                                                                                                                                                                                                             
    RuralABMDriver.network_parameters(30),                                                                                                                                                                                                                                               
    10,                                                                                                                                                                                                                                                                                   
@@ -25,13 +22,10 @@ run_simulations(
    100,                                                                                                                                                                                                                                                                                  
    con,                                                                                                                                                                                                                                                                                 
    STORE_NETWORK_SCM=true,                                                                                                                                                                                                                                                              
-   STORE_EPIDEMIC_SCM=true                                                                                                                                                                                                                                                              
+   STORE_EPIDEMIC_SCM=true                                                                                                                                                                                                                                                             
    )
-disconnect_from_database!(con)
-vacuum_database()
 
-con = connect_to_database()
-run_simulations(                                                                                                                                                                                                                                                         
+con = run_simulations(                                                                                                                                                                                                                                                         
    1,                                                                                                                                                                                                                                             
    RuralABMDriver.network_parameters(30),                                                                                                                                                                                                                                               
    10,                                                                                                                                                                                                                                                                                   
@@ -42,11 +36,8 @@ run_simulations(
    STORE_NETWORK_SCM=true,                                                                                                                                                                                                                                                              
    STORE_EPIDEMIC_SCM=true                                                                                                                                                                                                                                                              
    )
-disconnect_from_database!(con)
-vacuum_database()
 
-con = connect_to_database()
-run_simulations(                                                                                                                                                                                                                                                         
+con = run_simulations(                                                                                                                                                                                                                                                         
    1,                                                                                                                                                                                                                                             
    RuralABMDriver.network_parameters(30),                                                                                                                                                                                                                                               
    10,                                                                                                                                                                                                                                                                                   
@@ -57,6 +48,6 @@ run_simulations(
    STORE_NETWORK_SCM=true,                                                                                                                                                                                                                                                              
    STORE_EPIDEMIC_SCM=true                                                                                                                                                                                                                                                              
    )
+
 disconnect_from_database!(con)
-vacuum_database()
 
